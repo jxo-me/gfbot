@@ -1,26 +1,25 @@
 package middleware
 
 import (
+	"context"
 	"encoding/json"
-	"log"
-
 	tele "github.com/jxo-me/gfbot"
 )
 
 // Logger returns a middleware that logs incoming updates.
 // If no custom logger provided, log.Default() will be used.
-func Logger(logger ...*log.Logger) tele.MiddlewareFunc {
-	var l *log.Logger
+func Logger(ctx context.Context, logger ...tele.Logger) tele.MiddlewareFunc {
+	var l tele.Logger
 	if len(logger) > 0 {
 		l = logger[0]
 	} else {
-		l = log.Default()
+		l = &tele.StdDebugLogger{}
 	}
 
 	return func(next tele.HandlerFunc) tele.HandlerFunc {
 		return func(c tele.Context) error {
 			data, _ := json.MarshalIndent(c.Update(), "", "  ")
-			l.Println(string(data))
+			l.Debugf(ctx, string(data))
 			return next(c)
 		}
 	}
