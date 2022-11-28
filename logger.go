@@ -17,7 +17,7 @@ type Logger interface {
 	Noticef(context.Context, string, ...interface{})
 }
 
-const loggingPrefix = "rabbit"
+const loggingPrefix = "telegramBot"
 
 // StdDebugLogger logs to stdout up to the `DebugF` level
 type StdDebugLogger struct{}
