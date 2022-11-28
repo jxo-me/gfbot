@@ -37,7 +37,6 @@ type WebhookEndpoint struct {
 //
 // You can also leave the Listen field empty. In this case it is up to the caller to
 // add the Webhook to a http-mux.
-//
 type Webhook struct {
 	Listen         string   `json:"url"`
 	MaxConnections int      `json:"max_connections"`
@@ -60,7 +59,7 @@ type Webhook struct {
 	bot  *Bot
 }
 
-func (h *Webhook) getFiles() map[string]File {
+func (h *Webhook) GetFiles() map[string]File {
 	m := make(map[string]File)
 
 	if h.TLS != nil {
@@ -82,7 +81,7 @@ func (h *Webhook) getFiles() map[string]File {
 	return m
 }
 
-func (h *Webhook) getParams() map[string]string {
+func (h *Webhook) GetParams() map[string]string {
 	params := make(map[string]string)
 
 	if h.MaxConnections != 0 {
@@ -129,7 +128,7 @@ func (h *Webhook) Poll(b *Bot, dest chan Update, stop chan struct{}) {
 	h.bot = b
 
 	if h.Listen == "" {
-		h.waitForStop(stop)
+		h.WaitForStop(stop)
 		return
 	}
 
@@ -139,7 +138,7 @@ func (h *Webhook) Poll(b *Bot, dest chan Update, stop chan struct{}) {
 	}
 
 	go func(stop chan struct{}) {
-		h.waitForStop(stop)
+		h.WaitForStop(stop)
 		s.Shutdown(context.Background())
 	}(stop)
 
@@ -150,7 +149,7 @@ func (h *Webhook) Poll(b *Bot, dest chan Update, stop chan struct{}) {
 	}
 }
 
-func (h *Webhook) waitForStop(stop chan struct{}) {
+func (h *Webhook) WaitForStop(stop chan struct{}) {
 	<-stop
 	close(stop)
 }
@@ -171,37 +170,6 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.dest <- update
 }
 
-// Webhook returns the current webhook status.
-func (b *Bot) Webhook() (*Webhook, error) {
-	data, err := b.Raw("getWebhookInfo", nil)
-	if err != nil {
-		return nil, err
-	}
+func (h *Webhook) Handler(w http.ResponseWriter, r *http.Request) {
 
-	var resp struct {
-		Result Webhook
-	}
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, wrapError(err)
-	}
-	return &resp.Result, nil
-}
-
-// SetWebhook configures a bot to receive incoming
-// updates via an outgoing webhook.
-func (b *Bot) SetWebhook(w *Webhook) error {
-	_, err := b.sendFiles("setWebhook", w.getFiles(), w.getParams())
-	return err
-}
-
-// RemoveWebhook removes webhook integration.
-func (b *Bot) RemoveWebhook(dropPending ...bool) error {
-	drop := false
-	if len(dropPending) > 0 {
-		drop = dropPending[0]
-	}
-	_, err := b.Raw("deleteWebhook", map[string]bool{
-		"drop_pending_updates": drop,
-	})
-	return err
 }
