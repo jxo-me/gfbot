@@ -106,7 +106,6 @@ func (r *ReplyMarkup) Row(many ...Btn) Row {
 //
 // `Split(3, []Btn{six buttons...}) -> [[1, 2, 3], [4, 5, 6]]`
 // `Split(2, []Btn{six buttons...}) -> [[1, 2],[3, 4],[5, 6]]`
-//
 func (r *ReplyMarkup) Split(max int, btns []Btn) []Row {
 	rows := make([]Row, (max-1+len(btns))/max)
 	for i, b := range btns {
@@ -202,7 +201,6 @@ func (r *ReplyMarkup) WebApp(text string, app *WebApp) Btn {
 //
 // Set either Contact or Location to true in order to request
 // sensitive info, such as user's phone number or current location.
-//
 type ReplyButton struct {
 	Text string `json:"text"`
 
@@ -230,13 +228,14 @@ type InlineButton struct {
 	// It will be used as a callback endpoint.
 	Unique string `json:"unique,omitempty"`
 
-	Text            string  `json:"text"`
-	URL             string  `json:"url,omitempty"`
-	Data            string  `json:"callback_data,omitempty"`
-	InlineQuery     string  `json:"switch_inline_query,omitempty"`
-	InlineQueryChat string  `json:"switch_inline_query_current_chat"`
-	Login           *Login  `json:"login_url,omitempty"`
-	WebApp          *WebApp `json:"web_app,omitempty"`
+	Text            string        `json:"text"`
+	URL             string        `json:"url,omitempty"`
+	Data            string        `json:"callback_data,omitempty"`
+	CallbackGame    *CallbackGame `json:"callback_game,omitempty"`
+	InlineQuery     string        `json:"switch_inline_query,omitempty"`
+	InlineQueryChat string        `json:"switch_inline_query_current_chat"`
+	Login           *Login        `json:"login_url,omitempty"`
+	WebApp          *WebApp       `json:"web_app,omitempty"`
 }
 
 // MarshalJSON implements json.Marshaler interface.
@@ -305,6 +304,9 @@ type Login struct {
 	Username    string `json:"bot_username,omitempty"`
 	WriteAccess bool   `json:"request_write_access,omitempty"`
 }
+
+// CallbackGame is for starting a game in an inline keyboard button.
+type CallbackGame struct{}
 
 // MenuButton describes the bot's menu button in a private chat.
 type MenuButton struct {
