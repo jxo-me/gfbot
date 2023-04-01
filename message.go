@@ -10,6 +10,9 @@ import (
 type Message struct {
 	ID int `json:"message_id"`
 
+	// Optional. Unique identifier of a message thread to which the message belongs; for supergroups only
+	MessageThreadId int64 `json:"message_thread_id,omitempty"`
+
 	// For message sent to channels, Sender will be nil
 	Sender *User `json:"from"`
 
@@ -42,6 +45,9 @@ type Message struct {
 
 	// For forwarded messages, unixtime of the original message.
 	OriginalUnixtime int `json:"forward_date"`
+
+	// Optional. True, if the message is sent to a forum topic
+	IsTopicMessage bool `json:"is_topic_message,omitempty"`
 
 	// Message is a channel post that was automatically forwarded to the connected discussion group.
 	AutomaticForward bool `json:"is_automatic_forward"`

@@ -42,7 +42,8 @@ type Chat struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	Username  string `json:"username"`
-
+	// Optional. Custom emoji identifier of emoji status of the other party in a private chat. Returned only in getChat.
+	EmojiStatusCustomEmojiId string `json:"emoji_status_custom_emoji_id,omitempty"`
 	// Returns only in getChat
 	Bio              string        `json:"bio,omitempty"`
 	Photo            *ChatPhoto    `json:"photo,omitempty"`
@@ -162,14 +163,13 @@ func (c *ChatMemberUpdate) Time() time.Time {
 //
 // Example:
 //
-//		group := tele.ChatID(-100756389456)
-//		b.Send(group, "Hello!")
+//	group := tele.ChatID(-100756389456)
+//	b.Send(group, "Hello!")
 //
-//		type Config struct {
-//			AdminGroup tele.ChatID `json:"admin_group"`
-//		}
-//		b.Send(conf.AdminGroup, "Hello!")
-//
+//	type Config struct {
+//		AdminGroup tele.ChatID `json:"admin_group"`
+//	}
+//	b.Send(conf.AdminGroup, "Hello!")
 type ChatID int64
 
 // Recipient returns chat ID (see Recipient interface).
