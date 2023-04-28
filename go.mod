@@ -3,7 +3,7 @@ module github.com/jxo-me/gfbot
 go 1.18
 
 require (
-	github.com/goccy/go-yaml v1.10.1
+	github.com/goccy/go-yaml v1.11.0
 	github.com/spf13/viper v1.15.0
 	github.com/stretchr/testify v1.8.2
 )

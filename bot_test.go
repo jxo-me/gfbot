@@ -3,7 +3,6 @@ package telebot
 import (
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -334,7 +333,7 @@ func TestBotProcessUpdate(t *testing.T) {
 	b.ProcessUpdate(Update{Message: &Message{UsersJoined: []User{{ID: 1}}}})
 	b.ProcessUpdate(Update{Message: &Message{UserLeft: &User{}}})
 	b.ProcessUpdate(Update{Message: &Message{NewGroupTitle: "title"}})
-	b.ProcessUpdate(Update{Message: &Message{NewGroupPhoto: &Photo{}}})
+	b.ProcessUpdate(Update{Message: &Message{NewGroupPhoto: []Photo{}}})
 	b.ProcessUpdate(Update{Message: &Message{GroupPhotoDeleted: true}})
 	b.ProcessUpdate(Update{Message: &Message{Chat: &Chat{ID: 1}, MigrateTo: 2}})
 	b.ProcessUpdate(Update{EditedMessage: &Message{Text: "edited"}})
@@ -454,7 +453,7 @@ func TestBot(t *testing.T) {
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
-		file, err := ioutil.TempFile("", "")
+		file, err := os.CreateTemp("", "")
 		require.NoError(t, err)
 
 		_, err = io.Copy(file, resp.Body)

@@ -42,8 +42,7 @@ type Chat struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	Username  string `json:"username"`
-	// Optional. Custom emoji identifier of emoji status of the other party in a private chat. Returned only in getChat.
-	EmojiStatusCustomEmojiId string `json:"emoji_status_custom_emoji_id,omitempty"`
+
 	// Returns only in getChat
 	Bio              string        `json:"bio,omitempty"`
 	Photo            *ChatPhoto    `json:"photo,omitempty"`

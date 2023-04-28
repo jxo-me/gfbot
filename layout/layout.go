@@ -3,8 +3,8 @@ package layout
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
 	"log"
+	"os"
 	"strings"
 	"sync"
 	"text/template"
@@ -69,7 +69,7 @@ type (
 
 // New parses the given layout file.
 func New(path string, funcs ...template.FuncMap) (*Layout, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

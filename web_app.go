@@ -3,6 +3,7 @@ package telebot
 // WebApp represents a parameter of the inline keyboard button
 // or the keyboard button used to launch Web App.
 type WebApp struct {
+	// An HTTPS URL of a Web App to be opened with additional data as specified in Initializing Web Apps
 	URL string `json:"url"`
 }
 
