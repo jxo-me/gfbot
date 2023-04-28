@@ -106,7 +106,6 @@ func (r *ReplyMarkup) Row(many ...Btn) Row {
 //
 // `Split(3, []Btn{six buttons...}) -> [[1, 2, 3], [4, 5, 6]]`
 // `Split(2, []Btn{six buttons...}) -> [[1, 2],[3, 4],[5, 6]]`
-//
 func (r *ReplyMarkup) Split(max int, btns []Btn) []Row {
 	rows := make([]Row, (max-1+len(btns))/max)
 	for i, b := range btns {
@@ -202,7 +201,6 @@ func (r *ReplyMarkup) WebApp(text string, app *WebApp) Btn {
 //
 // Set either Contact or Location to true in order to request
 // sensitive info, such as user's phone number or current location.
-//
 type ReplyButton struct {
 	Text string `json:"text"`
 
@@ -230,14 +228,29 @@ type InlineButton struct {
 	// It will be used as a callback endpoint.
 	Unique string `json:"unique,omitempty"`
 
-	Text            string        `json:"text"`
-	URL             string        `json:"url,omitempty"`
-	Data            string        `json:"callback_data,omitempty"`
-	CallbackGame    *CallbackGame `json:"callback_game,omitempty"`
-	InlineQuery     string        `json:"switch_inline_query,omitempty"`
-	InlineQueryChat string        `json:"switch_inline_query_current_chat"`
-	Login           *Login        `json:"login_url,omitempty"`
-	WebApp          *WebApp       `json:"web_app,omitempty"`
+	Text                  string                 `json:"text"`
+	URL                   string                 `json:"url,omitempty"`
+	Data                  string                 `json:"callback_data,omitempty"`
+	WebApp                *WebApp                `json:"web_app,omitempty"`
+	Login                 *Login                 `json:"login_url,omitempty"`
+	InlineQuery           string                 `json:"switch_inline_query,omitempty"`
+	InlineQueryChat       string                 `json:"switch_inline_query_current_chat,omitempty"`
+	InlineQueryChosenChat *InlineQueryChosenChat `json:"switch_inline_query_chosen_chat,omitempty"`
+	CallbackGame          *CallbackGame          `json:"callback_game,omitempty"`
+	Pay                   bool                   `json:"pay,omitempty"`
+}
+
+type InlineQueryChosenChat struct {
+	// 	Optional. The default inline query to be inserted in the input field. If left empty, only the bot's username will be inserted
+	Query string `json:"query,omitempty"`
+	// Optional. True, if private chats with users can be chosen
+	AllowUserChats bool `json:"allow_user_chats,omitempty"`
+	// Optional. True, if private chats with bots can be chosen
+	AllowBotChats bool `json:"allow_bot_chats,omitempty"`
+	// Optional. True, if group and supergroup chats can be chosen
+	AllowGroupChats bool `json:"allow_group_chats,omitempty"`
+	// Optional. True, if channel chats can be chosen
+	AllowChannelChats bool `json:"allow_channel_chats,omitempty"`
 }
 
 // MarshalJSON implements json.Marshaler interface.

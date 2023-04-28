@@ -19,7 +19,7 @@ type InputMedia struct {
 	Type                 string   `json:"type"`
 	Media                string   `json:"media"`
 	Caption              string   `json:"caption"`
-	Thumbnail            string   `json:"thumb,omitempty"`
+	Thumbnail            string   `json:"thumbnail,omitempty"`
 	ParseMode            string   `json:"parse_mode,omitempty"`
 	Entities             Entities `json:"caption_entities,omitempty"`
 	Width                int      `json:"width,omitempty"`
@@ -112,7 +112,7 @@ type Audio struct {
 
 	// (Optional)
 	Caption   string `json:"caption,omitempty"`
-	Thumbnail *Photo `json:"thumb,omitempty"`
+	Thumbnail *Photo `json:"thumbnail,omitempty"`
 	Title     string `json:"title,omitempty"`
 	Performer string `json:"performer,omitempty"`
 	MIME      string `json:"mime_type,omitempty"`
@@ -144,7 +144,7 @@ type Document struct {
 	File
 
 	// (Optional)
-	Thumbnail            *Photo `json:"thumb,omitempty"`
+	Thumbnail            *Photo `json:"thumbnail,omitempty"`
 	Caption              string `json:"caption,omitempty"`
 	MIME                 string `json:"mime_type"`
 	FileName             string `json:"file_name,omitempty"`
@@ -178,7 +178,7 @@ type Video struct {
 
 	// (Optional)
 	Caption   string `json:"caption,omitempty"`
-	Thumbnail *Photo `json:"thumb,omitempty"`
+	Thumbnail *Photo `json:"thumbnail,omitempty"`
 	Streaming bool   `json:"supports_streaming,omitempty"`
 	MIME      string `json:"mime_type,omitempty"`
 	FileName  string `json:"file_name,omitempty"`
@@ -214,7 +214,7 @@ type Animation struct {
 
 	// (Optional)
 	Caption   string `json:"caption,omitempty"`
-	Thumbnail *Photo `json:"thumb,omitempty"`
+	Thumbnail *Photo `json:"thumbnail,omitempty"`
 	MIME      string `json:"mime_type,omitempty"`
 	FileName  string `json:"file_name,omitempty"`
 }
@@ -264,7 +264,7 @@ type VideoNote struct {
 	Duration int `json:"duration"`
 
 	// (Optional)
-	Thumbnail *Photo `json:"thumb,omitempty"`
+	Thumbnail *Photo `json:"thumbnail,omitempty"`
 	Length    int    `json:"length,omitempty"`
 }
 

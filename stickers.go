@@ -163,7 +163,7 @@ func (b *Bot) DeleteSticker(sticker string) error {
 
 }
 
-// SetStickerSetThumb sets a thumbnail of the sticker set.
+// SetStickerSetThumbnail sets a thumbnail of the sticker set.
 // Animated thumbnails can be set for animated sticker sets only.
 //
 // Thumbnail must be a PNG image, up to 128 kilobytes in size
@@ -171,8 +171,7 @@ func (b *Bot) DeleteSticker(sticker string) error {
 // up to 32 kilobytes in size.
 //
 // Animated sticker set thumbnail can't be uploaded via HTTP URL.
-//
-func (b *Bot) SetStickerSetThumb(to Recipient, s StickerSet) error {
+func (b *Bot) SetStickerSetThumbnail(to Recipient, s StickerSet) error {
 	files := make(map[string]File)
 	if s.PNG != nil {
 		files["thumb"] = *s.PNG
@@ -185,7 +184,7 @@ func (b *Bot) SetStickerSetThumb(to Recipient, s StickerSet) error {
 		"user_id": to.Recipient(),
 	}
 
-	_, err := b.sendFiles("setStickerSetThumb", files, params)
+	_, err := b.sendFiles("setStickerSetThumbnail", files, params)
 	return err
 }
 
