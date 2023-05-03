@@ -315,7 +315,7 @@ type MessageEntity struct {
 	Language string `json:"language,omitempty"`
 
 	// (Optional) For EntityCustomEmoji entity type only.
-	CustomEmoji string `json:"custom_emoji_id"`
+	CustomEmoji string `json:"custom_emoji_id,omitempty"`
 }
 
 // EntityType is a MessageEntity type.
