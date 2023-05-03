@@ -142,7 +142,7 @@ type Message struct {
 	// For a service message, new members that were added to
 	// the group or supergroup and information about them
 	// (the bot itself may be one of these members).
-	UsersJoined []User `json:"new_chat_members"`
+	UsersJoined []User `json:"new_chat_members,omitempty"`
 
 	// For a service message, represents a user,
 	// that just got added to chat, this message came from.
@@ -150,7 +150,7 @@ type Message struct {
 	// Sender leads to User, capable of invite.
 	//
 	// UserJoined might be the Bot itself.
-	UserJoined *User `json:"new_chat_member"`
+	UserJoined *User `json:"new_chat_member,omitempty"`
 
 	// For a service message, represents a user,
 	// that just left chat, this message came from.
@@ -262,7 +262,7 @@ type Message struct {
 
 	// Optional. Service message: forum topic edited
 	ForumTopicClosed *ForumTopicClosed `json:"forum_topic_closed,omitempty"`
-	
+
 	// Optional. Service message: forum topic closed
 	ForumTopicReopened *ForumTopicReopened `json:"forum_topic_reopened,omitempty"`
 
