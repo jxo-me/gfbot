@@ -11,17 +11,17 @@ type User struct {
 	ID int64 `json:"id"`
 
 	FirstName    string `json:"first_name"`
-	LastName     string `json:"last_name"`
-	Username     string `json:"username"`
-	LanguageCode string `json:"language_code"`
-	IsBot        bool   `json:"is_bot"`
-	IsPremium    bool   `json:"is_premium"`
-	AddedToMenu  bool   `json:"added_to_attachment_menu"`
+	LastName     string `json:"last_name,omitempty"`
+	Username     string `json:"username,omitempty"`
+	LanguageCode string `json:"language_code,omitempty"`
+	IsBot        bool   `json:"is_bot,omitempty"`
+	IsPremium    bool   `json:"is_premium,omitempty"`
+	AddedToMenu  bool   `json:"added_to_attachment_menu,omitempty"`
 
 	// Returns only in getMe
-	CanJoinGroups   bool `json:"can_join_groups"`
-	CanReadMessages bool `json:"can_read_all_group_messages"`
-	SupportsInline  bool `json:"supports_inline_queries"`
+	CanJoinGroups   bool `json:"can_join_groups,omitempty"`
+	CanReadMessages bool `json:"can_read_all_group_messages,omitempty"`
+	SupportsInline  bool `json:"supports_inline_queries,omitempty"`
 }
 
 // Recipient returns user ID (see Recipient interface).
@@ -39,25 +39,33 @@ type Chat struct {
 	// Won't be there for ChatPrivate.
 	Title string `json:"title"`
 
+	Username  string `json:"username"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
-	Username  string `json:"username"`
+	IsForum   bool   `json:"is_forum,omitempty"`
 
 	// Returns only in getChat
-	Bio              string        `json:"bio,omitempty"`
-	Photo            *ChatPhoto    `json:"photo,omitempty"`
-	Description      string        `json:"description,omitempty"`
-	InviteLink       string        `json:"invite_link,omitempty"`
-	PinnedMessage    *Message      `json:"pinned_message,omitempty"`
-	Permissions      *Rights       `json:"permissions,omitempty"`
-	SlowMode         int           `json:"slow_mode_delay,omitempty"`
-	StickerSet       string        `json:"sticker_set_name,omitempty"`
-	CanSetStickerSet bool          `json:"can_set_sticker_set,omitempty"`
-	LinkedChatID     int64         `json:"linked_chat_id,omitempty"`
-	ChatLocation     *ChatLocation `json:"location,omitempty"`
-	Private          bool          `json:"has_private_forwards,omitempty"`
-	Protected        bool          `json:"has_protected_content,omitempty"`
-	NoVoiceAndVideo  bool          `json:"has_restricted_voice_and_video_messages"`
+	Photo                        *ChatPhoto    `json:"photo,omitempty"`
+	ActiveUsernames              []string      `json:"active_usernames,omitempty"`
+	EmojiStatusCustomEmojiId     string        `json:"emoji_status_custom_emoji_id,omitempty"`
+	Bio                          string        `json:"bio,omitempty"`
+	Private                      bool          `json:"has_private_forwards,omitempty"`
+	NoVoiceAndVideo              bool          `json:"has_restricted_voice_and_video_messages,omitempty"`
+	JoinToSendMessages           bool          `json:"join_to_send_messages,omitempty"`
+	JoinByRequest                bool          `json:"join_by_request,omitempty"`
+	Description                  string        `json:"description,omitempty"`
+	InviteLink                   string        `json:"invite_link,omitempty"`
+	PinnedMessage                *Message      `json:"pinned_message,omitempty"`
+	Permissions                  *Rights       `json:"permissions,omitempty"`
+	SlowMode                     int           `json:"slow_mode_delay,omitempty"`
+	MessageAutoDeleteTime        int           `json:"message_auto_delete_time,omitempty"`
+	HasAggressiveAntiSpamEnabled bool          `json:"has_aggressive_anti_spam_enabled,omitempty"`
+	HasHiddenMembers             bool          `json:"has_hidden_members,omitempty"`
+	Protected                    bool          `json:"has_protected_content,omitempty"`
+	StickerSet                   string        `json:"sticker_set_name,omitempty"`
+	CanSetStickerSet             bool          `json:"can_set_sticker_set,omitempty"`
+	LinkedChatID                 int64         `json:"linked_chat_id,omitempty"`
+	ChatLocation                 *ChatLocation `json:"location,omitempty"`
 }
 
 // Recipient returns chat ID (see Recipient interface).
