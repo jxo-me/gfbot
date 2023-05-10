@@ -81,7 +81,7 @@ const (
 	ChatGroup          ChatType = "group"
 	ChatSuperGroup     ChatType = "supergroup"
 	ChatChannel        ChatType = "channel"
-	ChatChannelPrivate ChatType = "privatechannel"
+	ChatChannelPrivate ChatType = "privateChannel"
 )
 
 // ChatLocation represents a location to which a chat is connected.

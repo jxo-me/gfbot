@@ -97,3 +97,16 @@ func (h *HttpHook) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 	h.dest <- update
 }
+
+func (h *HttpHook) Signature(w http.ResponseWriter, r *http.Request) {
+	initData := r.Header.Get("X-Telegram-Bot-Web-App-Authorization")
+	ok, err := h.bot.ValidateWebAppData(initData, 0)
+	if err != nil {
+		h.bot.debug(fmt.Errorf("initData ValidateWebAppData error:%s", err.Error()))
+		return
+	}
+	if ok {
+		//
+	}
+
+}

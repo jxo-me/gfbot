@@ -1,13 +1,19 @@
 package telebot
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1276,4 +1282,63 @@ func (b *Bot) GetMyShortDescription(languageCode string) (string, error) {
 	}
 
 	return resp.Result.Description, nil
+}
+
+// ValidateWebAppData validate data received via the Web App
+// https://core.telegram.org/bots/webapps#validating-data-received-via-the-web-app
+func (b *Bot) ValidateWebAppData(initDataStr string, expIn time.Duration) (bool, error) {
+	initData, err := url.ParseQuery(initDataStr)
+	if err != nil {
+		return false, fmt.Errorf("error parsing data %w", err)
+	}
+	var (
+		// Init data creation time.
+		authDate time.Time
+		// Init data sign.
+		hash string
+		// All found key-value pairs.
+		dataCheckString = make([]string, 0, len(initData))
+	)
+	for k, v := range initData {
+		if k == "hash" {
+			continue
+		}
+		if k == "auth_date" {
+			if i, err := strconv.Atoi(v[0]); err == nil {
+				authDate = time.Unix(int64(i), 0)
+			}
+		}
+		if len(v) > 0 {
+			dataCheckString = append(dataCheckString, fmt.Sprintf("%s=%s", k, v[0]))
+		}
+	}
+
+	sort.Strings(dataCheckString)
+
+	secret := hmac.New(sha256.New, []byte("WebAppData"))
+	secret.Write([]byte(b.Token))
+
+	hHash := hmac.New(sha256.New, secret.Sum(nil))
+	hHash.Write([]byte(strings.Join(dataCheckString, "\n")))
+
+	hash = hex.EncodeToString(hHash.Sum(nil))
+
+	if initData.Get("hash") != hash {
+		return false, errors.New("hash not equal")
+	}
+	// In case, expiration time is passed, we do additional parameters check.
+	if expIn > 0 {
+		// In case, auth date is zero, it means, we can not check if parameters
+		// are expired.
+		if authDate.IsZero() {
+			return false, errors.New("auth_date is missing")
+		}
+
+		// Check if init data is expired.
+		if authDate.Add(expIn).Before(time.Now()) {
+			return false, errors.New("init data is expired")
+		}
+	}
+
+	return true, nil
 }
