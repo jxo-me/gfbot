@@ -21,9 +21,9 @@ const DefaultMaxRoutines = 50
 type (
 	// DispatcherErrorHandler allows for handling the returned errors from matched handlers.
 	// It takes the non-nil error returned by the handler.
-	DispatcherErrorHandler func(b *Bot, ctx *Context, err error) DispatcherAction
+	DispatcherErrorHandler func(ctx Context, err error) DispatcherAction
 	// DispatcherPanicHandler allows for handling goroutine panics, where the 'r' value contains the reason for the panic.
-	DispatcherPanicHandler func(b *Bot, ctx *Context, r interface{})
+	DispatcherPanicHandler func(ctx Context, r interface{})
 )
 
 type DispatcherAction string
@@ -189,7 +189,7 @@ func (d *Dispatcher) Start(b *Bot, updates chan json.RawMessage) {
 			err := d.ProcessRawUpdate(b, upd)
 			if err != nil {
 				if d.UnhandledErrFunc != nil {
-					d.UnhandledErrFunc(err)
+					d.UnhandledErrFunc(err, nil)
 				} else {
 					d.logf("Failed to process update: %s", err.Error())
 				}
@@ -229,18 +229,18 @@ func (d *Dispatcher) ProcessRawUpdate(b *Bot, r json.RawMessage) error {
 		return fmt.Errorf("failed to unmarshal update: %w", err)
 	}
 
-	return d.ProcessUpdate(b, &upd, nil)
+	return d.ProcessUpdate(b, upd)
 }
 
 // ProcessUpdate iterates over the list of groups to execute the matching handlers.
-func (d *Dispatcher) ProcessUpdate(b *Bot, update *Update, data map[string]interface{}) (err error) {
-	ctx := NewContext(update, data)
+func (d *Dispatcher) ProcessUpdate(b *Bot, update Update) (err error) {
+	ctx := b.NewContext(update)
 
 	defer func() {
 		if r := recover(); r != nil {
 			// If a panic handler is defined, handle the error.
 			if d.Panic != nil {
-				d.Panic(b, ctx, r)
+				d.Panic(ctx, r)
 				return
 
 			} else {
@@ -251,21 +251,21 @@ func (d *Dispatcher) ProcessUpdate(b *Bot, update *Update, data map[string]inter
 		}
 	}()
 
-	err = d.iterateOverHandlerGroups(b, ctx)
+	err = d.iterateOverHandlerGroups(ctx)
 	// We don't inline this, because we want to make sure that the defer function can override the error in the case of
 	// a panic.
 	return err
 }
 
-func (d *Dispatcher) iterateOverHandlerGroups(b *Bot, ctx *Context) error {
+func (d *Dispatcher) iterateOverHandlerGroups(ctx Context) error {
 	for _, groupNum := range d.handlerGroups {
 		for _, handler := range d.handlers[groupNum] {
-			if !handler.CheckUpdate(b, ctx) {
+			if !handler.CheckUpdate(ctx) {
 				// Handler filter doesn't match this update; continue.
 				continue
 			}
 
-			err := handler.HandleUpdate(b, ctx)
+			err := handler.HandleUpdate(ctx)
 			if err != nil {
 				if errors.Is(err, ContinueGroups) {
 					// Continue handling current group.
@@ -278,7 +278,7 @@ func (d *Dispatcher) iterateOverHandlerGroups(b *Bot, ctx *Context) error {
 				} else {
 					action := DispatcherActionNoop
 					if d.Error != nil {
-						action = d.Error(b, ctx, err)
+						action = d.Error(ctx, err)
 					}
 
 					switch action {
