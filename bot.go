@@ -48,7 +48,7 @@ func NewBot(pref Settings) (*Bot, error) {
 		onError: pref.OnError,
 
 		Updates:  make(chan Update, pref.Updates),
-		handlers: make(map[string]HandlerFunc),
+		handlers: make(map[string]Handler),
 		stop:     make(chan chan struct{}),
 
 		synchronous: pref.Synchronous,
@@ -71,6 +71,8 @@ func NewBot(pref Settings) (*Bot, error) {
 	return bot, nil
 }
 
+type ErrorFunc func(error, Context)
+
 // Bot represents a separate Telegram bot instance.
 type Bot struct {
 	Me      *User
@@ -78,10 +80,10 @@ type Bot struct {
 	URL     string
 	Updates chan Update
 	Poller  Poller
-	onError func(error, Context)
+	onError ErrorFunc
 
 	group       *Group
-	handlers    map[string]HandlerFunc
+	handlers    map[string]Handler
 	synchronous bool
 	verbose     bool
 	parseMode   ParseMode
@@ -177,14 +179,14 @@ var (
 // Middleware usage:
 //
 //	b.Handle("/ban", onBan, middleware.Whitelist(ids...))
-func (b *Bot) Handle(endpoint interface{}, h HandlerFunc, m ...MiddlewareFunc) {
+func (b *Bot) Handle(endpoint interface{}, h Handler, m ...MiddlewareFunc) {
 	if len(b.group.middleware) > 0 {
 		m = append(b.group.middleware, m...)
 	}
 
-	handler := func(c Context) error {
-		return applyMiddleware(h, m...)(c)
-	}
+	handler := HandlerFunc(func(c Context) error {
+		return applyMiddleware(h, m...).HandleUpdate(c)
+	})
 
 	switch end := endpoint.(type) {
 	case string:

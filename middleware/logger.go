@@ -16,11 +16,11 @@ func Logger(ctx context.Context, logger ...tele.Logger) tele.MiddlewareFunc {
 		l = &tele.StdDebugLogger{}
 	}
 
-	return func(next tele.HandlerFunc) tele.HandlerFunc {
-		return func(c tele.Context) error {
+	return func(next tele.Handler) tele.Handler {
+		return tele.HandlerFunc(func(c tele.Context) error {
 			data, _ := json.MarshalIndent(c.Update(), "", "  ")
 			l.Debugf(ctx, string(data))
-			return next(c)
-		}
+			return next.HandleUpdate(c)
+		})
 	}
 }

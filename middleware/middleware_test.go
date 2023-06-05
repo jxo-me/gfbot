@@ -25,6 +25,6 @@ func TestRecover(t *testing.T) {
 	})
 
 	assert.NotPanics(t, func() {
-		Recover(onError)(h)(nil)
+		Recover(onError)(tele.HandlerFunc(h)).HandleUpdate(nil)
 	})
 }
