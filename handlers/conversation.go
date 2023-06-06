@@ -117,48 +117,6 @@ func (c Conversation) HandleUpdate(ctx tele.IContext) error {
 	return nil
 }
 
-// ConversationStateChange handles all the possible states that can be returned from a conversation.
-type ConversationStateChange struct {
-	// The next state to handle in the current conversation.
-	NextState *string
-	// End the current conversation
-	End bool
-	// Move the parent conversation (if any) to the desired state.
-	ParentState *ConversationStateChange
-}
-
-func (s *ConversationStateChange) Error() string {
-	// Avoid infinite print recursion by changing type
-	type tmp *ConversationStateChange
-	return fmt.Sprintf("conversation state change: %+v", tmp(s))
-}
-
-// NextConversationState moves to the defined state in the current conversation.
-func NextConversationState(nextState string) *ConversationStateChange {
-	return &ConversationStateChange{NextState: &nextState}
-}
-
-// NextParentConversationState moves to the defined state in the parent conversation, without changing the state of the current one.
-func NextParentConversationState(parentState *ConversationStateChange) error {
-	return &ConversationStateChange{ParentState: parentState}
-}
-
-// NextConversationStateAndParentState moves both the current conversation state and the parent conversation state.
-// Can be helpful in the case of certain circular conversations.
-func NextConversationStateAndParentState(nextState string, parentState *ConversationStateChange) error {
-	return &ConversationStateChange{NextState: &nextState, ParentState: parentState}
-}
-
-// EndConversation ends the current conversation.
-func EndConversation() error {
-	return &ConversationStateChange{End: true}
-}
-
-// EndConversationToParentState ends the current conversation and moves the parent conversation to the new state.
-func EndConversationToParentState(parentState *ConversationStateChange) error {
-	return &ConversationStateChange{End: true, ParentState: parentState}
-}
-
 func (c Conversation) Name() string {
 	return fmt.Sprintf("conversation_%p", c.States)
 }
@@ -205,37 +163,4 @@ func (c Conversation) getNextHandler(ctx tele.IContext) (tele.IHandler, error) {
 	}
 
 	return nil, nil
-}
-
-// checkHandlerList iterates over a list of handlers until a match is found; at which point it is returned.
-func checkHandlerList(handlers []tele.IHandler, ctx tele.IContext) tele.IHandler {
-	for _, h := range handlers {
-		if h.CheckUpdate(ctx) {
-			return h
-		}
-	}
-	return nil
-}
-
-// wrappedExitHandler ensures that exit handlers return conversation ends by default.
-type wrappedExitHandler struct {
-	h tele.IHandler
-}
-
-func (w wrappedExitHandler) CheckUpdate(ctx tele.IContext) bool {
-	fmt.Println("wrappedExitHandler CheckUpdate", w.h.CheckUpdate(ctx))
-	return w.h.CheckUpdate(ctx)
-}
-
-func (w wrappedExitHandler) HandleUpdate(ctx tele.IContext) error {
-	err := w.h.HandleUpdate(ctx)
-	fmt.Println("wrappedExitHandler HandleUpdate", err)
-	if err != nil {
-		return err
-	}
-	return EndConversation()
-}
-
-func (w wrappedExitHandler) Name() string {
-	return w.h.Name()
 }
