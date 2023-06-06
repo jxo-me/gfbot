@@ -28,8 +28,6 @@ func NewInMemoryStorage(strategy KeyStrategy) *InMemoryStorage {
 
 func (c *InMemoryStorage) Get(ctx IContext) (*State, error) {
 	key := StateKey(ctx, c.keyStrategy)
-	fmt.Println("111111111111111111111111111111111111111")
-	fmt.Println("InMemoryStorage Get key:", key)
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -41,6 +39,7 @@ func (c *InMemoryStorage) Get(ctx IContext) (*State, error) {
 	if !ok {
 		return nil, KeyNotFound
 	}
+	fmt.Println("InMemoryStorage Get key:", key)
 	return &s, nil
 }
 

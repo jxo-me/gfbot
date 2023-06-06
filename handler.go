@@ -24,3 +24,13 @@ func (h HandlerFunc) CheckUpdate(ctx IContext) bool {
 func (h HandlerFunc) HandleUpdate(ctx IContext) error {
 	return h(ctx)
 }
+
+// CheckHandlerList iterates over a list of handlers until a match is found; at which point it is returned.
+func CheckHandlerList(handlers []IHandler, ctx IContext) IHandler {
+	for _, h := range handlers {
+		if h.CheckUpdate(ctx) {
+			return h
+		}
+	}
+	return nil
+}

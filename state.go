@@ -7,5 +7,6 @@ package telebot
 // individual fields.
 type State struct {
 	// Key represents the name of the current state, as defined in the States map of handlers.Conversation.
-	Key string
+	Key       string
+	EntryName string
 }

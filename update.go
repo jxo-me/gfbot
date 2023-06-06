@@ -283,6 +283,15 @@ func (b *Bot) ProcessUpdate(u Update) {
 }
 
 func (b *Bot) handle(end string, c IContext) bool {
+	// get user conversation
+	state, err := b.StateStorage.Get(c)
+	if err == nil && state != nil {
+		if handler, ok := b.handlers[state.EntryName]; ok {
+			b.runHandler(handler, c)
+			return true
+		}
+	}
+	// common router
 	if handler, ok := b.handlers[end]; ok {
 		if !handler.CheckUpdate(c) {
 			// IHandler filter doesn't match this update; continue.
