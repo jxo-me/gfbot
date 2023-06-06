@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	tele "github.com/jxo-me/gfbot"
-	"github.com/jxo-me/gfbot/handlers/conversation"
 )
 
 // TODO: Add a "block" option to force linear processing. Also a "waiting" state to handle blocked handlers.
@@ -19,17 +18,15 @@ import (
 // the next update.
 type Conversation struct {
 	// EntryPoints is the list of handlers to start the conversation.
-	EntryPoints []tele.Handler
+	EntryPoints []tele.IHandler
 	// States is the map of possible states, with a list of possible handlers for each one.
-	States map[string][]tele.Handler
-	// StateStorage is responsible for storing all running conversations.
-	StateStorage conversation.Storage
+	States map[string][]tele.IHandler
 
 	// The following are all optional fields:
 	// Exits is the list of handlers to exit the current conversation partway (eg /cancel commands)
-	Exits []tele.Handler
+	Exits []tele.IHandler
 	// Fallbacks is the list of handlers to handle updates which haven't been matched by any states.
-	Fallbacks []tele.Handler
+	Fallbacks []tele.IHandler
 	// If True, a user can restart the conversation by hitting one of the entry points.
 	AllowReEntry bool
 }
@@ -37,45 +34,36 @@ type Conversation struct {
 type ConversationOpts struct {
 	// Exits is the list of handlers to exit the current conversation partway (eg /cancel commands). This returns
 	// EndConversation() by default, unless otherwise specified.
-	Exits []tele.Handler
+	Exits []tele.IHandler
 	// Fallbacks is the list of handlers to handle updates which haven't been matched by any other handlers.
-	Fallbacks []tele.Handler
+	Fallbacks []tele.IHandler
 	// If True, a user can restart the conversation at any time by hitting one of the entry points again.
 	AllowReEntry bool
-	// StateStorage is responsible for storing all running conversations.
-	StateStorage conversation.Storage
 }
 
-func NewConversation(entryPoints []tele.Handler, states map[string][]tele.Handler, opts *ConversationOpts) Conversation {
+func NewConversation(entryPoints []tele.IHandler, states map[string][]tele.IHandler, opts *ConversationOpts) Conversation {
 	c := Conversation{
 		EntryPoints: entryPoints,
 		States:      states,
-		// Setup a default storage medium
-		StateStorage: conversation.NewInMemoryStorage(conversation.KeyStrategySenderAndChat),
 	}
 
 	if opts != nil {
 		c.Exits = opts.Exits
 		c.Fallbacks = opts.Fallbacks
 		c.AllowReEntry = opts.AllowReEntry
-
-		// If no StateStorage is specified, we should keep the default.
-		if opts.StateStorage != nil {
-			c.StateStorage = opts.StateStorage
-		}
 	}
 
 	return c
 }
 
-func (c Conversation) CheckUpdate(ctx tele.Context) bool {
+func (c Conversation) CheckUpdate(ctx tele.IContext) bool {
 	// Note: Kinda sad that this error gets lost.
 	h, _ := c.getNextHandler(ctx)
 	fmt.Println("Conversation CheckUpdate 111111111:", h)
 	return h != nil
 }
 
-func (c Conversation) HandleUpdate(ctx tele.Context) error {
+func (c Conversation) HandleUpdate(ctx tele.IContext) error {
 	next, err := c.getNextHandler(ctx)
 	fmt.Println("Conversation HandleUpdate err:", err)
 	fmt.Println("Conversation HandleUpdate next:", next)
@@ -98,7 +86,7 @@ func (c Conversation) HandleUpdate(ctx tele.Context) error {
 	fmt.Println("2222222222222222222222222222222222222:", stateChange.End)
 	if stateChange.End {
 		// Mark the conversation as ended by deleting the conversation reference.
-		err := c.StateStorage.Delete(ctx)
+		err := ctx.Bot().StateStorage.Delete(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to end conversation: %w", err)
 		}
@@ -111,7 +99,7 @@ func (c Conversation) HandleUpdate(ctx tele.Context) error {
 			// Check if the "next" state is a supported state.
 			return fmt.Errorf("unknown state: %w", stateChange)
 		}
-		err := c.StateStorage.Set(ctx, conversation.State{Key: *stateChange.NextState})
+		err := ctx.Bot().StateStorage.Set(ctx, tele.State{Key: *stateChange.NextState})
 		fmt.Println("44444444444444444444444444444 err:", err)
 		fmt.Println("44444444444444444444444444444 key:", *stateChange.NextState)
 		if err != nil {
@@ -177,12 +165,12 @@ func (c Conversation) Name() string {
 
 // getNextHandler goes through all the handlers in the conversation, until it finds a handler that matches.
 // If no matching handler is found, returns nil.
-func (c Conversation) getNextHandler(ctx tele.Context) (tele.Handler, error) {
+func (c Conversation) getNextHandler(ctx tele.IContext) (tele.IHandler, error) {
 	// Check if a conversation has already started for this user.
-	currState, err := c.StateStorage.Get(ctx)
+	currState, err := ctx.Bot().StateStorage.Get(ctx)
 	fmt.Println("getNextHandler err:", err)
 	if err != nil {
-		if errors.Is(err, conversation.KeyNotFound) {
+		if errors.Is(err, tele.KeyNotFound) {
 			fmt.Println("getNextHandler EntryPoints:", c.EntryPoints)
 			fmt.Println("getNextHandler checkHandlerList result:", checkHandlerList(c.EntryPoints, ctx))
 			// If this is an unknown conversation key, then we know this is a new conversation, so we check all
@@ -220,7 +208,7 @@ func (c Conversation) getNextHandler(ctx tele.Context) (tele.Handler, error) {
 }
 
 // checkHandlerList iterates over a list of handlers until a match is found; at which point it is returned.
-func checkHandlerList(handlers []tele.Handler, ctx tele.Context) tele.Handler {
+func checkHandlerList(handlers []tele.IHandler, ctx tele.IContext) tele.IHandler {
 	for _, h := range handlers {
 		if h.CheckUpdate(ctx) {
 			return h
@@ -231,15 +219,15 @@ func checkHandlerList(handlers []tele.Handler, ctx tele.Context) tele.Handler {
 
 // wrappedExitHandler ensures that exit handlers return conversation ends by default.
 type wrappedExitHandler struct {
-	h tele.Handler
+	h tele.IHandler
 }
 
-func (w wrappedExitHandler) CheckUpdate(ctx tele.Context) bool {
+func (w wrappedExitHandler) CheckUpdate(ctx tele.IContext) bool {
 	fmt.Println("wrappedExitHandler CheckUpdate", w.h.CheckUpdate(ctx))
 	return w.h.CheckUpdate(ctx)
 }
 
-func (w wrappedExitHandler) HandleUpdate(ctx tele.Context) error {
+func (w wrappedExitHandler) HandleUpdate(ctx tele.IContext) error {
 	err := w.h.HandleUpdate(ctx)
 	fmt.Println("wrappedExitHandler HandleUpdate", err)
 	if err != nil {

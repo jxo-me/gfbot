@@ -1,13 +1,11 @@
-package conversation
+package telebot
 
 import (
 	"fmt"
 	"strconv"
-
-	tele "github.com/jxo-me/gfbot"
 )
 
-func StateKey(ctx tele.Context, strategy KeyStrategy) string {
+func StateKey(ctx IContext, strategy KeyStrategy) string {
 	switch strategy {
 	case KeyStrategySender:
 		return strconv.FormatInt(ctx.Sender().ID, 10)

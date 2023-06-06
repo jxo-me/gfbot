@@ -1,4 +1,4 @@
-package conversation
+package telebot
 
 // State stores all the variables relevant to the current conversation state.
 //

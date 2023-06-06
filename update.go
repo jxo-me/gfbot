@@ -282,10 +282,10 @@ func (b *Bot) ProcessUpdate(u Update) {
 	}
 }
 
-func (b *Bot) handle(end string, c Context) bool {
+func (b *Bot) handle(end string, c IContext) bool {
 	if handler, ok := b.handlers[end]; ok {
 		if !handler.CheckUpdate(c) {
-			// Handler filter doesn't match this update; continue.
+			// IHandler filter doesn't match this update; continue.
 			return true
 		}
 
@@ -295,7 +295,7 @@ func (b *Bot) handle(end string, c Context) bool {
 	return false
 }
 
-func (b *Bot) handleMedia(c Context) bool {
+func (b *Bot) handleMedia(c IContext) bool {
 	var (
 		m     = c.Message()
 		fired = true
@@ -329,7 +329,7 @@ func (b *Bot) handleMedia(c Context) bool {
 	return true
 }
 
-func (b *Bot) runHandler(h Handler, c Context) {
+func (b *Bot) runHandler(h IHandler, c IContext) {
 	f := func() {
 		if err := h.HandleUpdate(c); err != nil {
 			b.OnError(err, c)

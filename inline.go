@@ -83,18 +83,18 @@ func (ir *InlineResult) MessageSig() (string, int64) {
 	return ir.MessageID, 0
 }
 
-// Result represents one result of an inline query.
-type Result interface {
+// IResult represents one result of an inline query.
+type IResult interface {
 	ResultID() string
 	SetResultID(string)
 	SetParseMode(ParseMode)
-	SetContent(InputMessageContent)
+	SetContent(IInputMessageContent)
 	SetReplyMarkup(*ReplyMarkup)
 	Process(*Bot)
 }
 
 // Results is a slice wrapper for convenient marshalling.
-type Results []Result
+type Results []IResult
 
 // MarshalJSON makes sure IQRs have proper IDs and Type variables set.
 func (results Results) MarshalJSON() ([]byte, error) {
@@ -107,10 +107,10 @@ func (results Results) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	return json.Marshal([]Result(results))
+	return json.Marshal([]IResult(results))
 }
 
-func inferIQR(result Result) error {
+func inferIQR(result IResult) error {
 	switch r := result.(type) {
 	case *ArticleResult:
 		r.Type = "article"

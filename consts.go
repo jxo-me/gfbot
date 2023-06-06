@@ -1,4 +1,4 @@
-package conversation
+package telebot
 
 type KeyStrategy int64
 

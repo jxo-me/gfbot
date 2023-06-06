@@ -2,9 +2,9 @@ package telebot
 
 // MiddlewareFunc represents a middleware processing function,
 // which get called before the endpoint group or specific handler.
-type MiddlewareFunc func(handler Handler) Handler
+type MiddlewareFunc func(handler IHandler) IHandler
 
-func applyMiddleware(h Handler, m ...MiddlewareFunc) Handler {
+func applyMiddleware(h IHandler, m ...MiddlewareFunc) IHandler {
 	for i := len(m) - 1; i >= 0; i-- {
 		h = m[i](h)
 	}

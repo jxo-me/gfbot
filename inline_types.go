@@ -14,7 +14,7 @@ type ResultBase struct {
 	ParseMode ParseMode `json:"parse_mode,omitempty"`
 
 	// Optional. Content of the message to be sent.
-	Content InputMessageContent `json:"input_message_content,omitempty"`
+	Content IInputMessageContent `json:"input_message_content,omitempty"`
 
 	// Optional. Inline keyboard attached to the message.
 	ReplyMarkup *ReplyMarkup `json:"reply_markup,omitempty"`
@@ -36,7 +36,7 @@ func (r *ResultBase) SetParseMode(mode ParseMode) {
 }
 
 // SetContent sets ResultBase.Content.
-func (r *ResultBase) SetContent(content InputMessageContent) {
+func (r *ResultBase) SetContent(content IInputMessageContent) {
 	r.Content = content
 }
 
@@ -68,7 +68,7 @@ type ArticleResult struct {
 	Title string `json:"title"`
 
 	// Message text. Shortcut (and mutually exclusive to) specifying
-	// InputMessageContent.
+	// IInputMessageContent.
 	Text string `json:"message_text,omitempty"`
 
 	// Optional. URL of the result.

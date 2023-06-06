@@ -1,16 +1,14 @@
-package conversation
+package telebot
 
 import (
 	"errors"
 	"fmt"
 	"sync"
-
-	tele "github.com/jxo-me/gfbot"
 )
 
 var KeyNotFound = errors.New("conversation key not found")
 
-// InMemoryStorage is a thread-safe in-memory implementation of the Storage interface.
+// InMemoryStorage is a thread-safe in-memory implementation of the IStorage interface.
 type InMemoryStorage struct {
 	// keyStrategy defines how to calculate keys for each conversation.
 	keyStrategy KeyStrategy
@@ -28,7 +26,7 @@ func NewInMemoryStorage(strategy KeyStrategy) *InMemoryStorage {
 	}
 }
 
-func (c *InMemoryStorage) Get(ctx tele.Context) (*State, error) {
+func (c *InMemoryStorage) Get(ctx IContext) (*State, error) {
 	key := StateKey(ctx, c.keyStrategy)
 	fmt.Println("111111111111111111111111111111111111111")
 	fmt.Println("InMemoryStorage Get key:", key)
@@ -46,7 +44,7 @@ func (c *InMemoryStorage) Get(ctx tele.Context) (*State, error) {
 	return &s, nil
 }
 
-func (c *InMemoryStorage) Set(ctx tele.Context, state State) error {
+func (c *InMemoryStorage) Set(ctx IContext, state State) error {
 	key := StateKey(ctx, c.keyStrategy)
 
 	c.lock.Lock()
@@ -60,7 +58,7 @@ func (c *InMemoryStorage) Set(ctx tele.Context, state State) error {
 	return nil
 }
 
-func (c *InMemoryStorage) Delete(ctx tele.Context) error {
+func (c *InMemoryStorage) Delete(ctx IContext) error {
 	key := StateKey(ctx, c.keyStrategy)
 
 	c.lock.Lock()

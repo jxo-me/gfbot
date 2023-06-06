@@ -5,8 +5,8 @@ import (
 	"net/http"
 )
 
-// Hook is a provider of Webhook.
-type Hook interface {
+// IHook is a provider of Webhook.
+type IHook interface {
 	GetFiles() map[string]File
 	GetParams() map[string]string
 	WaitForStop(stop chan struct{})
@@ -14,14 +14,14 @@ type Hook interface {
 }
 
 // Webhook returns the current webhook status.
-func (b *Bot) Webhook() (*Hook, error) {
+func (b *Bot) Webhook() (*IHook, error) {
 	data, err := b.Raw("getWebhookInfo", nil)
 	if err != nil {
 		return nil, err
 	}
 
 	var resp struct {
-		Result Hook
+		Result IHook
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, wrapError(err)
@@ -31,7 +31,7 @@ func (b *Bot) Webhook() (*Hook, error) {
 
 // SetWebhook configures a bot to receive incoming
 // updates via an outgoing webhook.
-func (b *Bot) SetWebhook(w Hook) error {
+func (b *Bot) SetWebhook(w IHook) error {
 	_, err := b.sendFiles("setWebhook", w.GetFiles(), w.GetParams())
 	return err
 }

@@ -9,8 +9,8 @@ import (
 // AutoRespond returns a middleware that automatically responds
 // to every callback.
 func AutoRespond() tele.MiddlewareFunc {
-	return func(next tele.Handler) tele.Handler {
-		return tele.HandlerFunc(func(c tele.Context) error {
+	return func(next tele.IHandler) tele.IHandler {
+		return tele.HandlerFunc(func(c tele.IContext) error {
 			if c.Callback() != nil {
 				defer c.Respond()
 			}
@@ -22,8 +22,8 @@ func AutoRespond() tele.MiddlewareFunc {
 // IgnoreVia returns a middleware that ignores all the
 // "sent via" messages.
 func IgnoreVia() tele.MiddlewareFunc {
-	return func(next tele.Handler) tele.Handler {
-		return tele.HandlerFunc(func(c tele.Context) error {
+	return func(next tele.IHandler) tele.IHandler {
+		return tele.HandlerFunc(func(c tele.IContext) error {
 			if msg := c.Message(); msg != nil && msg.Via != nil {
 				return nil
 			}
@@ -35,8 +35,8 @@ func IgnoreVia() tele.MiddlewareFunc {
 // Recover returns a middleware that recovers a panic happened in
 // the handler.
 func Recover(onError ...func(error)) tele.MiddlewareFunc {
-	return func(next tele.Handler) tele.Handler {
-		return tele.HandlerFunc(func(c tele.Context) error {
+	return func(next tele.IHandler) tele.IHandler {
+		return tele.HandlerFunc(func(c tele.IContext) error {
 			var f func(error)
 			if len(onError) > 0 {
 				f = onError[0]

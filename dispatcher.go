@@ -21,9 +21,9 @@ const DefaultMaxRoutines = 50
 type (
 	// DispatcherErrorHandler allows for handling the returned errors from matched handlers.
 	// It takes the non-nil error returned by the handler.
-	DispatcherErrorHandler func(ctx Context, err error) DispatcherAction
+	DispatcherErrorHandler func(ctx IContext, err error) DispatcherAction
 	// DispatcherPanicHandler allows for handling goroutine panics, where the 'r' value contains the reason for the panic.
-	DispatcherPanicHandler func(ctx Context, r interface{})
+	DispatcherPanicHandler func(ctx IContext, r interface{})
 )
 
 type DispatcherAction string
@@ -68,7 +68,7 @@ type Dispatcher struct {
 	// handlerGroups represents the list of available handler groups, numerically sorted.
 	handlerGroups []int
 	// handlers represents all available handles, split into groups (see handlerGroups).
-	handlers map[int][]Handler
+	handlers map[int][]IHandler
 
 	// limiter is how we limit the maximum number of goroutines for handling updates.
 	// if nil, this is a limitless dispatcher.
@@ -138,7 +138,7 @@ func NewDispatcher(opts *DispatcherOpts) *Dispatcher {
 		Panic:            panicHandler,
 		UnhandledErrFunc: unhandledErrFunc,
 		ErrorLog:         errLog,
-		handlers:         make(map[int][]Handler),
+		handlers:         make(map[int][]IHandler),
 		limiter:          limiter,
 		waitGroup:        sync.WaitGroup{},
 	}
@@ -209,12 +209,12 @@ func (d *Dispatcher) Stop() {
 
 // AddHandler adds a new handler to the dispatcher. The dispatcher will call CheckUpdate() to see whether the handler
 // should be executed, and then HandleUpdate() to execute it.
-func (d *Dispatcher) AddHandler(handler Handler) {
+func (d *Dispatcher) AddHandler(handler IHandler) {
 	d.AddHandlerToGroup(handler, 0)
 }
 
 // AddHandlerToGroup adds a handler to a specific group; lowest number will be processed first.
-func (d *Dispatcher) AddHandlerToGroup(handler Handler, group int) {
+func (d *Dispatcher) AddHandlerToGroup(handler IHandler, group int) {
 	currHandlers, ok := d.handlers[group]
 	if !ok {
 		d.handlerGroups = append(d.handlerGroups, group)
@@ -257,11 +257,11 @@ func (d *Dispatcher) ProcessUpdate(b *Bot, update Update) (err error) {
 	return err
 }
 
-func (d *Dispatcher) iterateOverHandlerGroups(ctx Context) error {
+func (d *Dispatcher) iterateOverHandlerGroups(ctx IContext) error {
 	for _, groupNum := range d.handlerGroups {
 		for _, handler := range d.handlers[groupNum] {
 			if !handler.CheckUpdate(ctx) {
-				// Handler filter doesn't match this update; continue.
+				// IHandler filter doesn't match this update; continue.
 				continue
 			}
 
@@ -296,7 +296,7 @@ func (d *Dispatcher) iterateOverHandlerGroups(ctx Context) error {
 				}
 			}
 
-			// Handler matched this update, move to next group by default.
+			// IHandler matched this update, move to next group by default.
 			break
 		}
 	}

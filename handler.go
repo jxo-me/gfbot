@@ -1,26 +1,26 @@
 package telebot
 
-type Handler interface {
+type IHandler interface {
 	// CheckUpdate checks whether the update should handled by this handler.
-	CheckUpdate(ctx Context) bool
+	CheckUpdate(ctx IContext) bool
 	// HandleUpdate processes the update.
-	HandleUpdate(ctx Context) error
+	HandleUpdate(ctx IContext) error
 	// Name gets the handler name; used to differentiate handlers programmatically. Names should be unique.
 	Name() string
 }
 
 // HandlerFunc represents a handler function, which is
 // used to handle actual endpoints.
-type HandlerFunc func(Context) error
+type HandlerFunc func(IContext) error
 
 func (h HandlerFunc) Name() string {
 	return "HandlerFunc"
 }
 
-func (h HandlerFunc) CheckUpdate(ctx Context) bool {
+func (h HandlerFunc) CheckUpdate(ctx IContext) bool {
 	return true
 }
 
-func (h HandlerFunc) HandleUpdate(ctx Context) error {
+func (h HandlerFunc) HandleUpdate(ctx IContext) error {
 	return h(ctx)
 }

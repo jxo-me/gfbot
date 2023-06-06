@@ -19,7 +19,7 @@ type (
 	Layout struct {
 		pref  *tele.Settings
 		mu    sync.RWMutex // protects ctxs
-		ctxs  map[tele.Context]string
+		ctxs  map[tele.IContext]string
 		funcs template.FuncMap
 
 		commands map[string]string
@@ -63,7 +63,7 @@ type (
 		Content         ResultContent `yaml:"content"`
 	}
 
-	// ResultContent represents any kind of InputMessageContent and implements it.
+	// ResultContent represents any kind of IInputMessageContent and implements it.
 	ResultContent map[string]interface{}
 )
 
@@ -75,7 +75,7 @@ func New(path string, funcs ...template.FuncMap) (*Layout, error) {
 	}
 
 	lt := Layout{
-		ctxs:  make(map[tele.Context]string),
+		ctxs:  make(map[tele.IContext]string),
 		funcs: make(template.FuncMap),
 	}
 
@@ -153,7 +153,7 @@ func (lt *Layout) Locales() []string {
 }
 
 // Locale returns the context locale.
-func (lt *Layout) Locale(c tele.Context) (string, bool) {
+func (lt *Layout) Locale(c tele.IContext) (string, bool) {
 	lt.mu.RLock()
 	defer lt.mu.RUnlock()
 	locale, ok := lt.ctxs[c]
@@ -161,7 +161,7 @@ func (lt *Layout) Locale(c tele.Context) (string, bool) {
 }
 
 // SetLocale allows you to change a locale for the passed context.
-func (lt *Layout) SetLocale(c tele.Context, locale string) {
+func (lt *Layout) SetLocale(c tele.IContext, locale string) {
 	lt.mu.Lock()
 	lt.ctxs[c] = locale
 	lt.mu.Unlock()
@@ -235,10 +235,10 @@ func (lt *Layout) CommandsLocale(locale string, args ...interface{}) (cmds []tel
 //
 // Usage:
 //
-//	func onStart(c tele.Context) error {
+//	func onStart(c tele.IContext) error {
 //		return c.Send(lt.Text(c, "start", c.Sender()))
 //	}
-func (lt *Layout) Text(c tele.Context, k string, args ...interface{}) string {
+func (lt *Layout) Text(c tele.IContext, k string, args ...interface{}) string {
 	locale, ok := lt.Locale(c)
 	if !ok {
 		return ""
@@ -307,7 +307,7 @@ func (lt *Layout) Callback(k string) tele.CallbackEndpoint {
 //	m := b.NewMarkup()
 //	m.Inline(m.Row(btns...))
 //	// Your generated markup is ready.
-func (lt *Layout) Button(c tele.Context, k string, args ...interface{}) *tele.Btn {
+func (lt *Layout) Button(c tele.IContext, k string, args ...interface{}) *tele.Btn {
 	locale, ok := lt.Locale(c)
 	if !ok {
 		return nil
@@ -366,13 +366,13 @@ func (lt *Layout) ButtonLocale(locale, k string, args ...interface{}) *tele.Btn 
 //
 // Usage:
 //
-//	func onStart(c tele.Context) error {
+//	func onStart(c tele.IContext) error {
 //		return c.Send(
 //			lt.Text(c, "start"),
 //			lt.Markup(c, "menu"),
 //		)
 //	}
-func (lt *Layout) Markup(c tele.Context, k string, args ...interface{}) *tele.ReplyMarkup {
+func (lt *Layout) Markup(c tele.IContext, k string, args ...interface{}) *tele.ReplyMarkup {
 	locale, ok := lt.Locale(c)
 	if !ok {
 		return nil
@@ -433,17 +433,17 @@ func (lt *Layout) MarkupLocale(locale, k string, args ...interface{}) *tele.Repl
 //
 // Usage:
 //
-//	func onQuery(c tele.Context) error {
+//	func onQuery(c tele.IContext) error {
 //		results := make(tele.Results, len(articles))
 //		for i, article := range articles {
-//			results[i] = lt.Result(c, "article", article)
+//			results[i] = lt.IResult(c, "article", article)
 //		}
 //		return c.Answer(&tele.QueryResponse{
 //			Results:   results,
 //			CacheTime: 100,
 //		})
 //	}
-func (lt *Layout) Result(c tele.Context, k string, args ...interface{}) tele.Result {
+func (lt *Layout) Result(c tele.IContext, k string, args ...interface{}) tele.IResult {
 	locale, ok := lt.Locale(c)
 	if !ok {
 		return nil
@@ -454,7 +454,7 @@ func (lt *Layout) Result(c tele.Context, k string, args ...interface{}) tele.Res
 
 // ResultLocale returns a localized result processed with text/template engine.
 // See Result for more details.
-func (lt *Layout) ResultLocale(locale, k string, args ...interface{}) tele.Result {
+func (lt *Layout) ResultLocale(locale, k string, args ...interface{}) tele.IResult {
 	result, ok := lt.results[k]
 	if !ok {
 		return nil
@@ -473,7 +473,7 @@ func (lt *Layout) ResultLocale(locale, k string, args ...interface{}) tele.Resul
 	var (
 		data = buf.Bytes()
 		base Result
-		r    tele.Result
+		r    tele.IResult
 	)
 
 	if err := yaml.Unmarshal(data, &base); err != nil {
@@ -573,7 +573,7 @@ func (lt *Layout) template(tmpl *template.Template, locale string) *template.Tem
 	return tmpl.Funcs(funcs)
 }
 
-// IsInputMessageContent implements telebot.InputMessageContent.
+// IsInputMessageContent implements telebot.IInputMessageContent.
 func (ResultContent) IsInputMessageContent() bool {
 	return true
 }

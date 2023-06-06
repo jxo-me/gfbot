@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-// Context wraps an update and represents the context of current event.
-type Context interface {
+// IContext wraps an update and represents the context of current event.
+type IContext interface {
 	// Bot returns the bot instance.
 	Bot() *Bot
 
@@ -152,7 +152,7 @@ type Context interface {
 	Set(key string, val interface{})
 }
 
-// nativeContext is a native implementation of the Context interface.
+// nativeContext is a native implementation of the IContext interface.
 // "context" is taken by context package, maybe there is a better name.
 type nativeContext struct {
 	b     *Bot

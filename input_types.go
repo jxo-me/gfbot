@@ -1,8 +1,8 @@
 package telebot
 
-// InputMessageContent objects represent the content of a message to be sent
+// IInputMessageContent objects represent the content of a message to be sent
 // as a result of an inline query.
-type InputMessageContent interface {
+type IInputMessageContent interface {
 	IsInputMessageContent() bool
 }
 

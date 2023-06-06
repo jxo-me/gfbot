@@ -48,13 +48,20 @@ func NewBot(pref Settings) (*Bot, error) {
 		onError: pref.OnError,
 
 		Updates:  make(chan Update, pref.Updates),
-		handlers: make(map[string]Handler),
+		handlers: make(map[string]IHandler),
 		stop:     make(chan chan struct{}),
 
 		synchronous: pref.Synchronous,
 		verbose:     pref.Verbose,
 		parseMode:   pref.ParseMode,
 		client:      client,
+		// Setup a default storage medium
+		StateStorage: NewInMemoryStorage(KeyStrategySenderAndChat),
+	}
+
+	// If no StateStorage is specified, we should keep the default.
+	if pref.StateStorage != nil {
+		bot.StateStorage = pref.StateStorage
 	}
 
 	if pref.Offline {
@@ -71,7 +78,7 @@ func NewBot(pref Settings) (*Bot, error) {
 	return bot, nil
 }
 
-type ErrorFunc func(error, Context)
+type ErrorFunc func(error, IContext)
 
 // Bot represents a separate Telegram bot instance.
 type Bot struct {
@@ -83,13 +90,15 @@ type Bot struct {
 	onError ErrorFunc
 
 	group       *Group
-	handlers    map[string]Handler
+	handlers    map[string]IHandler
 	synchronous bool
 	verbose     bool
 	parseMode   ParseMode
 	stop        chan chan struct{}
 	client      *http.Client
 	stopClient  chan struct{}
+	// StateStorage is responsible for storing all running conversations.
+	StateStorage IStorage
 }
 
 // Settings represents a utility struct for passing certain
@@ -120,16 +129,19 @@ type Settings struct {
 	// OnError is a callback function that will get called on errors
 	// resulted from the handler. It is used as post-middleware function.
 	// Notice that context can be nil.
-	OnError func(error, Context)
+	OnError func(error, IContext)
 
 	// HTTP Client used to make requests to telegram api
 	Client *http.Client
 
 	// Offline allows to create a bot without network for testing purposes.
 	Offline bool
+
+	// StateStorage is responsible for storing all running conversations.
+	StateStorage IStorage
 }
 
-var defaultOnError = func(err error, c Context) {
+var defaultOnError = func(err error, c IContext) {
 	if c != nil {
 		log.Println(c.Update().ID, err)
 	} else {
@@ -137,7 +149,7 @@ var defaultOnError = func(err error, c Context) {
 	}
 }
 
-func (b *Bot) OnError(err error, c Context) {
+func (b *Bot) OnError(err error, c IContext) {
 	b.onError(err, c)
 }
 
@@ -168,23 +180,23 @@ var (
 //
 // Example:
 //
-//	b.Handle("/start", func (c tele.Context) error {
+//	b.Handle("/start", func (c tele.IContext) error {
 //		return c.Reply("Hello!")
 //	})
 //
-//	b.Handle(&inlineButton, func (c tele.Context) error {
+//	b.Handle(&inlineButton, func (c tele.IContext) error {
 //		return c.Respond(&tele.CallbackResponse{Text: "Hello!"})
 //	})
 //
 // Middleware usage:
 //
 //	b.Handle("/ban", onBan, middleware.Whitelist(ids...))
-func (b *Bot) Handle(endpoint interface{}, h Handler, m ...MiddlewareFunc) {
+func (b *Bot) Handle(endpoint interface{}, h IHandler, m ...MiddlewareFunc) {
 	if len(b.group.middleware) > 0 {
 		m = append(b.group.middleware, m...)
 	}
 
-	handler := HandlerFunc(func(c Context) error {
+	handler := HandlerFunc(func(c IContext) error {
 		return applyMiddleware(h, m...).HandleUpdate(c)
 	})
 
@@ -252,7 +264,7 @@ func (b *Bot) NewMarkup() *ReplyMarkup {
 
 // NewContext returns a new native context object,
 // field by the passed update.
-func (b *Bot) NewContext(u Update) Context {
+func (b *Bot) NewContext(u Update) IContext {
 	return &nativeContext{
 		b: b,
 		u: u,
@@ -792,7 +804,7 @@ func (b *Bot) Answer(query *Query, resp *QueryResponse) error {
 
 // AnswerWebApp sends a response for a query from Web App and returns
 // information about an inline message sent by a Web App on behalf of a user
-func (b *Bot) AnswerWebApp(query *Query, r Result) (*WebAppMessage, error) {
+func (b *Bot) AnswerWebApp(query *Query, r IResult) (*WebAppMessage, error) {
 	r.Process(b)
 
 	params := map[string]interface{}{
