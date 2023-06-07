@@ -286,10 +286,7 @@ func (b *Bot) handle(end string, c IContext) bool {
 	// get user conversation
 	state, err := b.StateStorage.Get(c)
 	if err == nil && state != nil {
-		if handler, ok := b.handlers[state.EntryName]; ok {
-			b.runHandler(handler, c)
-			return true
-		}
+		end = state.EntryName
 	}
 	// common router
 	if handler, ok := b.handlers[end]; ok {

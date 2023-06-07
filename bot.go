@@ -16,8 +16,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
+
+const DefaultMaxRoutines = 50
 
 // NewBot does try to build a Bot with token `token`, which
 // is a secret API key assigned to particular bot.
@@ -41,6 +44,20 @@ func NewBot(pref Settings) (*Bot, error) {
 		pref.OnError = defaultOnError
 	}
 
+	maxRoutines := DefaultMaxRoutines
+	if pref.MaxRoutines != 0 {
+		maxRoutines = pref.MaxRoutines
+	}
+	var limiter chan struct{}
+	// if maxRoutines < 0, we use a limitless dispatcher. (limiter == nil)
+	if maxRoutines >= 0 {
+		if maxRoutines == 0 {
+			maxRoutines = DefaultMaxRoutines
+		}
+
+		limiter = make(chan struct{}, maxRoutines)
+	}
+
 	bot := &Bot{
 		Token:   pref.Token,
 		URL:     pref.URL,
@@ -57,6 +74,8 @@ func NewBot(pref Settings) (*Bot, error) {
 		client:      client,
 		// Setup a default storage medium
 		StateStorage: NewInMemoryStorage(KeyStrategySenderAndChat),
+		limiter:      limiter,
+		waitGroup:    sync.WaitGroup{},
 	}
 
 	// If no StateStorage is specified, we should keep the default.
@@ -99,6 +118,11 @@ type Bot struct {
 	stopClient  chan struct{}
 	// StateStorage is responsible for storing all running conversations.
 	StateStorage IStorage
+	// limiter is how we limit the maximum number of goroutines for handling updates.
+	// if nil, this is a limitless dispatcher.
+	limiter chan struct{}
+	// waitGroup handles the number of running operations to allow for clean shutdowns.
+	waitGroup sync.WaitGroup
 }
 
 // Settings represents a utility struct for passing certain
@@ -139,6 +163,17 @@ type Settings struct {
 
 	// StateStorage is responsible for storing all running conversations.
 	StateStorage IStorage
+
+	// MaxRoutines is used to decide how to limit the number of goroutines spawned by the dispatcher.
+	// This defines how many updates can be processed at the same time.
+	// If MaxRoutines == 0, DefaultMaxRoutines is used instead.
+	// If MaxRoutines < 0, no limits are imposed.
+	// If MaxRoutines > 0, that value is used.
+	MaxRoutines int
+
+	// limiter is how we limit the maximum number of goroutines for handling updates.
+	// if nil, this is a limitless dispatcher.
+	limiter chan struct{}
 }
 
 var defaultOnError = func(err error, c IContext) {
@@ -235,7 +270,26 @@ func (b *Bot) Start() {
 		select {
 		// handle incoming updates
 		case upd := <-b.Updates:
-			b.ProcessUpdate(upd)
+			b.waitGroup.Add(1)
+
+			// If a limiter has been set, we use it to control the number of concurrent updates being processed.
+			if b.limiter != nil {
+				// Send data to limiter.
+				// If limiter buffer is full, this will block, until another update finishes processing.
+				b.limiter <- struct{}{}
+			}
+			go func(u Update) {
+				// We defer here so that whatever happens, we can clean up the dispatcher.
+				defer func() {
+					if b.limiter != nil {
+						// Pop an item from the limiter, allowing another update to process.
+						<-b.limiter
+					}
+					b.waitGroup.Done()
+				}()
+
+				b.ProcessUpdate(u)
+			}(upd)
 			// call to stop polling
 		case confirm := <-b.stop:
 			close(stop)
@@ -251,6 +305,10 @@ func (b *Bot) Start() {
 func (b *Bot) Stop() {
 	if b.stopClient != nil {
 		close(b.stopClient)
+	}
+	b.waitGroup.Wait()
+	if b.limiter != nil {
+		close(b.limiter)
 	}
 	confirm := make(chan struct{})
 	b.stop <- confirm
@@ -1355,4 +1413,14 @@ func (b *Bot) ValidateWebAppData(initDataStr string, expIn time.Duration) (bool,
 	}
 
 	return true, nil
+}
+
+// CurrentUsage returns the current number of concurrently processing updates.
+func (b *Bot) CurrentUsage() int {
+	return len(b.limiter)
+}
+
+// MaxUsage returns the maximum number of concurrently processing updates.
+func (b *Bot) MaxUsage() int {
+	return cap(b.limiter)
 }
