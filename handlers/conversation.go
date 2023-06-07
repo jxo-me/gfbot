@@ -7,9 +7,6 @@ import (
 	tele "github.com/jxo-me/gfbot"
 )
 
-// TODO: Add a "block" option to force linear processing. Also a "waiting" state to handle blocked handlers.
-// TODO: Allow for timeouts (and a "timeout" state to handle that)
-
 // The Conversation handler is an advanced handler which allows for running a sequence of commands in a stateful manner.
 // An example of this flow can be found at t.me/Botfather; upon receiving the "/newbot" command, the user is asked for
 // the name of their bot, which is sent as a separate message.
@@ -27,8 +24,6 @@ type Conversation struct {
 	// The following are all optional fields:
 	// ExitHandler is the list of handlers to exit the current conversation partway (eg /cancel commands)
 	ExitHandler tele.IHandler
-	// Fallbacks is the list of handlers to handle updates which haven't been matched by any states.
-	Fallbacks tele.IHandler
 	// If True, a user can restart the conversation by hitting one of the entry points.
 	AllowReEntry bool
 }
@@ -38,8 +33,6 @@ type ConversationOpts struct {
 	// ExitHandler is the list of handlers to exit the current conversation partway (eg /cancel commands). This returns
 	// EndConversation() by default, unless otherwise specified.
 	ExitHandler tele.IHandler
-	// Fallbacks is the list of handlers to handle updates which haven't been matched by any other handlers.
-	Fallbacks tele.IHandler
 	// If True, a user can restart the conversation at any time by hitting one of the entry points again.
 	AllowReEntry bool
 }
@@ -54,7 +47,6 @@ func NewConversation(entryName string, entryPoint tele.IHandler, states map[stri
 	if opts != nil {
 		c.ExitName = opts.ExitName
 		c.ExitHandler = opts.ExitHandler
-		c.Fallbacks = opts.Fallbacks
 		c.AllowReEntry = opts.AllowReEntry
 	}
 
