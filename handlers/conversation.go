@@ -127,7 +127,7 @@ func (c Conversation) getNextHandler(ctx tele.IContext) (tele.IHandler, error) {
 		return c.EntryHandler, nil
 	case c.ExitName:
 		if currState != nil {
-			return c.ExitHandler, nil
+			return wrappedExitHandler{h: c.ExitHandler}, nil
 		}
 	default:
 		if currState != nil {
