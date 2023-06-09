@@ -6,7 +6,8 @@ package telebot
 // As such, any storage implementations should be flexible, and allow for storing the entire struct rather than
 // individual fields.
 type State struct {
-	// Key represents the name of the current state, as defined in the States map of handlers.Conversation.
+	// Key represents the name of the current state, as defined in the SubHandlers map of handlers.Conversation.
 	Key       string
 	EntryName string
+	Data      any
 }

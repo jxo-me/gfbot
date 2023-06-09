@@ -7,6 +7,10 @@ import (
 	tele "github.com/jxo-me/gfbot"
 )
 
+const (
+	Entry = "Entry"
+)
+
 // The Conversation handler is an advanced handler which allows for running a sequence of commands in a stateful manner.
 // An example of this flow can be found at t.me/Botfather; upon receiving the "/newbot" command, the user is asked for
 // the name of their bot, which is sent as a separate message.
@@ -15,14 +19,14 @@ import (
 // the next update.
 type Conversation struct {
 	EntryName string
-	// EntryHandler is the list of handlers to start the conversation.
+	// EntryHandler is the handler to start the conversation.
 	EntryHandler tele.IHandler
-	// States is the map of possible states, with a list of possible handlers for each one.
-	States map[string][]tele.IHandler
+	// SubHandlers is the map of possible states, with a list of possible handlers for each one.
+	SubHandlers map[string][]tele.IHandler
 
 	ExitName string
 	// The following are all optional fields:
-	// ExitHandler is the list of handlers to exit the current conversation partway (eg /cancel commands)
+	// ExitHandler is the handler to exit the current conversation partway (eg /cancel commands)
 	ExitHandler tele.IHandler
 	// If True, a user can restart the conversation by hitting one of the entry points.
 	AllowReEntry bool
@@ -37,11 +41,11 @@ type ConversationOpts struct {
 	AllowReEntry bool
 }
 
-func NewConversation(entryName string, entryPoint tele.IHandler, states map[string][]tele.IHandler, opts *ConversationOpts) Conversation {
+func NewConversation(entryName string, entryPoint tele.IHandler, subHandlers map[string][]tele.IHandler, opts *ConversationOpts) Conversation {
 	c := Conversation{
 		EntryName:    entryName,
 		EntryHandler: entryPoint,
-		States:       states,
+		SubHandlers:  subHandlers,
 	}
 
 	if opts != nil {
@@ -78,7 +82,7 @@ func (c Conversation) HandleUpdate(ctx tele.IContext) error {
 
 	if stateChange.End {
 		// Mark the conversation as ended by deleting the conversation reference.
-		err := ctx.Bot().StateStorage.Delete(ctx)
+		err = ctx.Bot().StateStorage.Delete(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to end conversation: %w", err)
 		}
@@ -86,19 +90,14 @@ func (c Conversation) HandleUpdate(ctx tele.IContext) error {
 
 	if stateChange.NextState != nil {
 		// If the next state is defined, then move to it.
-		if _, ok := c.States[*stateChange.NextState]; !ok {
+		if _, ok := c.SubHandlers[*stateChange.NextState]; !ok {
 			// Check if the "next" state is a supported state.
 			return fmt.Errorf("unknown state: %w", stateChange)
 		}
-		err := ctx.Bot().StateStorage.Set(ctx, tele.State{Key: *stateChange.NextState, EntryName: c.EntryName})
+		err = ctx.Bot().StateStorage.Set(ctx, tele.State{Key: *stateChange.NextState, EntryName: c.EntryName, Data: stateChange.Data})
 		if err != nil {
 			return fmt.Errorf("failed to update conversation state: %w", err)
 		}
-	}
-
-	if stateChange.ParentState != nil {
-		// If a parent state is set, return that state for it to be handled.
-		return stateChange.ParentState
 	}
 
 	return nil
@@ -114,6 +113,9 @@ func (c Conversation) getNextHandler(ctx tele.IContext) (tele.IHandler, error) {
 	// Check if a conversation has already started for this user.
 	currState, _ := ctx.Bot().StateStorage.Get(ctx)
 	cmd := ctx.Message().Text
+	if ctx.Callback() != nil && ctx.Callback().Unique != "" {
+		cmd = "\f" + ctx.Callback().Unique
+	}
 	switch cmd {
 	case c.EntryName:
 		return c.EntryHandler, nil
@@ -123,7 +125,7 @@ func (c Conversation) getNextHandler(ctx tele.IContext) (tele.IHandler, error) {
 		}
 	default:
 		if currState != nil {
-			if next := tele.CheckHandlerList(c.States[currState.Key], ctx); next != nil {
+			if next := tele.CheckHandlerList(c.SubHandlers[currState.Key], ctx); next != nil {
 				return next, nil
 			}
 		}

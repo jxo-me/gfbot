@@ -44,6 +44,7 @@ func (c *InMemoryStorage) Get(ctx IContext) (*State, error) {
 }
 
 func (c *InMemoryStorage) Set(ctx IContext, state State) error {
+	fmt.Println("InMemoryStorage set keyStrategy:", c.keyStrategy)
 	key := StateKey(ctx, c.keyStrategy)
 
 	c.lock.Lock()
@@ -54,6 +55,8 @@ func (c *InMemoryStorage) Set(ctx IContext, state State) error {
 	}
 
 	c.conversations[key] = state
+	fmt.Println("InMemoryStorage set state:", state)
+	fmt.Println("InMemoryStorage set Key:", key)
 	return nil
 }
 
