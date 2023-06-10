@@ -12,8 +12,14 @@ type IStorage interface {
 	// Get(key string) (*State, error)
 	Get(ctx IContext) (*State, error)
 
-	// Set updates the conversation state.
+	// Set add the conversation state.
 	Set(ctx IContext, state State) error
+
+	// Next updates the conversation state.
+	Next(ctx IContext, key string) error
+
+	// UpdateData updates the conversation action state.
+	UpdateData(ctx IContext, act string, data any) error
 
 	// Delete ends the conversation, removing the key from the storage.
 	Delete(ctx IContext) error

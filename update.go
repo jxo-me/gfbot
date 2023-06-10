@@ -284,9 +284,9 @@ func (b *Bot) ProcessUpdate(u Update) {
 
 func (b *Bot) handle(end string, c IContext) bool {
 	// get user conversation
-	state, err := b.StateStorage.Get(c)
+	state, err := b.Store().Get(c)
 	if err == nil && state != nil {
-		end = state.EntryName
+		end = state.ServiceName
 	}
 	// common router
 	if handler, ok := b.handlers[end]; ok {

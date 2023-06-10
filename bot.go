@@ -73,14 +73,14 @@ func NewBot(pref Settings) (*Bot, error) {
 		parseMode:   pref.ParseMode,
 		client:      client,
 		// Setup a default storage medium
-		StateStorage: NewInMemoryStorage(KeyStrategySenderAndChat),
-		limiter:      limiter,
-		waitGroup:    sync.WaitGroup{},
+		store:     NewInMemoryStorage(KeyStrategySenderAndChat),
+		limiter:   limiter,
+		waitGroup: sync.WaitGroup{},
 	}
 
-	// If no StateStorage is specified, we should keep the default.
+	// If no store is specified, we should keep the default.
 	if pref.StateStorage != nil {
-		bot.StateStorage = pref.StateStorage
+		bot.store = pref.StateStorage
 	}
 
 	if pref.Offline {
@@ -116,8 +116,8 @@ type Bot struct {
 	stop        chan chan struct{}
 	client      *http.Client
 	stopClient  chan struct{}
-	// StateStorage is responsible for storing all running conversations.
-	StateStorage IStorage
+	// store is responsible for storing all running conversations.
+	store IStorage
 	// limiter is how we limit the maximum number of goroutines for handling updates.
 	// if nil, this is a limitless dispatcher.
 	limiter chan struct{}
@@ -1423,4 +1423,8 @@ func (b *Bot) CurrentUsage() int {
 // MaxUsage returns the maximum number of concurrently processing updates.
 func (b *Bot) MaxUsage() int {
 	return cap(b.limiter)
+}
+
+func (b *Bot) Store() IStorage {
+	return b.store
 }

@@ -4,11 +4,8 @@ import "fmt"
 
 // ConversationStateChange handles all the possible states that can be returned from a conversation.
 type ConversationStateChange struct {
-	// current conversation.
-	CurrentState *string
 	// The next state to handle in the current conversation.
 	NextState *string
-	Data      any
 	// End the current conversation
 	End bool
 }
@@ -20,13 +17,8 @@ func (s *ConversationStateChange) Error() string {
 }
 
 // NextConversationState moves to the defined state in the current conversation.
-func NextConversationState(currentState, nextState string) *ConversationStateChange {
-	return &ConversationStateChange{CurrentState: &currentState, NextState: &nextState}
-}
-
-// NextConversationStateWithData moves to the defined state in the current conversation and with data.
-func NextConversationStateWithData(currentState, nextState string, data any) *ConversationStateChange {
-	return &ConversationStateChange{CurrentState: &currentState, NextState: &nextState, Data: data}
+func NextConversationState(nextState string) *ConversationStateChange {
+	return &ConversationStateChange{NextState: &nextState}
 }
 
 // EndConversation ends the current conversation.

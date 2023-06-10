@@ -18,7 +18,7 @@ const (
 // The bot's internal state allows it to check at which point of the conversation the user is, and decide how to handle
 // the next update.
 type Conversation struct {
-	EntryName string
+	ServiceName string
 	// EntryHandler is the handler to start the conversation.
 	EntryHandler tele.IHandler
 	// SubHandlers is the map of possible states, with a list of possible handlers for each one.
@@ -43,7 +43,7 @@ type ConversationOpts struct {
 
 func NewConversation(entryName string, entryPoint tele.IHandler, subHandlers map[string][]tele.IHandler, opts *ConversationOpts) Conversation {
 	c := Conversation{
-		EntryName:    entryName,
+		ServiceName:  entryName,
 		EntryHandler: entryPoint,
 		SubHandlers:  subHandlers,
 	}
@@ -82,7 +82,7 @@ func (c Conversation) HandleUpdate(ctx tele.IContext) error {
 
 	if stateChange.End {
 		// Mark the conversation as ended by deleting the conversation reference.
-		err = ctx.Bot().StateStorage.Delete(ctx)
+		err = ctx.Bot().Store().Delete(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to end conversation: %w", err)
 		}
@@ -94,7 +94,7 @@ func (c Conversation) HandleUpdate(ctx tele.IContext) error {
 			// Check if the "next" state is a supported state.
 			return fmt.Errorf("unknown state: %w", stateChange)
 		}
-		err = ctx.Bot().StateStorage.Set(ctx, tele.State{Key: *stateChange.NextState, EntryName: c.EntryName, Data: stateChange.Data})
+		err = ctx.Bot().Store().Next(ctx, *stateChange.NextState)
 		if err != nil {
 			return fmt.Errorf("failed to update conversation state: %w", err)
 		}
@@ -104,20 +104,22 @@ func (c Conversation) HandleUpdate(ctx tele.IContext) error {
 }
 
 func (c Conversation) Name() string {
-	return c.EntryName
+	return c.ServiceName
 }
 
 // getNextHandler goes through all the handlers in the conversation, until it finds a handler that matches.
 // If no matching handler is found, returns nil.
 func (c Conversation) getNextHandler(ctx tele.IContext) (tele.IHandler, error) {
 	// Check if a conversation has already started for this user.
-	currState, _ := ctx.Bot().StateStorage.Get(ctx)
+	currState, _ := ctx.Bot().Store().Get(ctx)
 	cmd := ctx.Message().Text
 	if ctx.Callback() != nil && ctx.Callback().Unique != "" {
 		cmd = "\f" + ctx.Callback().Unique
 	}
 	switch cmd {
-	case c.EntryName:
+	case c.ServiceName:
+		// add state
+		_ = ctx.Bot().Store().Set(ctx, tele.State{ServiceName: c.ServiceName, Data: map[string]any{}})
 		return c.EntryHandler, nil
 	case c.ExitName:
 		if currState != nil {

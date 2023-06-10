@@ -2,7 +2,6 @@ package telebot
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 )
 
@@ -39,12 +38,10 @@ func (c *InMemoryStorage) Get(ctx IContext) (*State, error) {
 	if !ok {
 		return nil, KeyNotFound
 	}
-	fmt.Println("InMemoryStorage Get key:", key)
 	return &s, nil
 }
 
 func (c *InMemoryStorage) Set(ctx IContext, state State) error {
-	fmt.Println("InMemoryStorage set keyStrategy:", c.keyStrategy)
 	key := StateKey(ctx, c.keyStrategy)
 
 	c.lock.Lock()
@@ -55,8 +52,25 @@ func (c *InMemoryStorage) Set(ctx IContext, state State) error {
 	}
 
 	c.conversations[key] = state
-	fmt.Println("InMemoryStorage set state:", state)
-	fmt.Println("InMemoryStorage set Key:", key)
+	return nil
+}
+
+func (c *InMemoryStorage) Next(ctx IContext, keyStr string) error {
+	s, err := c.Get(ctx)
+	if err != nil {
+		s = &State{}
+	}
+	s.SetKey(keyStr)
+	return c.Set(ctx, *s)
+}
+
+func (c *InMemoryStorage) UpdateData(ctx IContext, act string, data any) error {
+	s, err := c.Get(ctx)
+	if err != nil {
+		// create
+		_ = c.Set(ctx, State{Data: map[string]any{act: data}})
+	}
+	s.UpdateData(act, data)
 	return nil
 }
 
