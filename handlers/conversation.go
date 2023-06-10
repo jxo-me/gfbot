@@ -73,7 +73,7 @@ func (c Conversation) HandleUpdate(ctx tele.IContext) error {
 		return nil
 	}
 
-	var stateChange *ConversationStateChange
+	var stateChange *StateChange
 	err = next.HandleUpdate(ctx)
 	if !errors.As(err, &stateChange) {
 		// We don't wrap this error, as users might want to handle it explicitly

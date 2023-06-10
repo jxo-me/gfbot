@@ -62,6 +62,7 @@ func NewBot(pref Settings) (*Bot, error) {
 		Token:   pref.Token,
 		URL:     pref.URL,
 		Poller:  pref.Poller,
+		hook:    pref.Hook,
 		onError: pref.OnError,
 
 		Updates:  make(chan Update, pref.Updates),
@@ -101,13 +102,13 @@ type ErrorFunc func(error, IContext)
 
 // Bot represents a separate Telegram bot instance.
 type Bot struct {
-	Me      *User
-	Token   string
-	URL     string
-	Updates chan Update
-	Poller  Poller
-	onError ErrorFunc
-
+	Me          *User
+	Token       string
+	URL         string
+	Updates     chan Update
+	Poller      Poller
+	onError     ErrorFunc
+	hook        IHook
 	group       *Group
 	handlers    map[string]IHandler
 	synchronous bool
@@ -137,6 +138,7 @@ type Settings struct {
 	// Poller is the provider of Updates.
 	Poller Poller
 
+	Hook IHook
 	// Synchronous prevents handlers from running in parallel.
 	// It makes ProcessUpdate return after the handler is finished.
 	Synchronous bool
@@ -1427,4 +1429,8 @@ func (b *Bot) MaxUsage() int {
 
 func (b *Bot) Store() IStorage {
 	return b.store
+}
+
+func (b *Bot) Hook() IHook {
+	return b.hook
 }
