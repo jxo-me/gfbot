@@ -2,6 +2,7 @@ package telebot
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 )
 
@@ -27,6 +28,7 @@ func NewInMemoryStorage(strategy KeyStrategy) *InMemoryStorage {
 
 func (c *InMemoryStorage) Get(ctx IContext) (*State, error) {
 	key := StateKey(ctx, c.keyStrategy)
+	fmt.Println("InMemoryStorage get Key:", key)
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 

@@ -12,13 +12,13 @@ type File struct {
 	FileSize int64  `json:"file_size"`
 
 	// FilePath is used for files on Telegram server.
-	FilePath string `json:"file_path"`
+	FilePath string `json:"file_path,omitempty"`
 
 	// FileLocal is used for files on local file system.
-	FileLocal string `json:"file_local"`
+	FileLocal string `json:"file_local,omitempty"`
 
 	// FileURL is used for file on the internet.
-	FileURL string `json:"file_url"`
+	FileURL string `json:"file_url,omitempty"`
 
 	// FileReader is used for file backed with io.Reader.
 	FileReader io.Reader `json:"-"`

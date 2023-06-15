@@ -37,11 +37,11 @@ type Chat struct {
 	Type ChatType `json:"type"`
 
 	// Won't be there for ChatPrivate.
-	Title string `json:"title"`
+	Title string `json:"title,omitempty"`
 
-	Username  string `json:"username"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
+	Username  string `json:"username,omitempty"`
+	FirstName string `json:"first_name,omitempty"`
+	LastName  string `json:"last_name,omitempty"`
 	IsForum   bool   `json:"is_forum,omitempty"`
 
 	// Returns only in getChat
