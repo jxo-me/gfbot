@@ -1,6 +1,7 @@
 package telebot
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -272,6 +273,9 @@ func (b *Bot) Start() {
 		select {
 		// handle incoming updates
 		case upd := <-b.Updates:
+			l := &StdDebugLogger{}
+			data, _ := json.MarshalIndent(upd, "", "  ")
+			l.Debugf(context.Background(), string(data))
 			b.waitGroup.Add(1)
 
 			// If a limiter has been set, we use it to control the number of concurrent updates being processed.

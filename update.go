@@ -28,6 +28,7 @@ type Update struct {
 // A started bot calls this function automatically.
 func (b *Bot) ProcessUpdate(u Update) {
 	c := b.NewContext(u)
+	// send Message
 	if u.Message != nil {
 		m := u.Message
 
@@ -218,6 +219,7 @@ func (b *Bot) ProcessUpdate(u Update) {
 		return
 	}
 
+	// Callback
 	if u.Callback != nil {
 		if data := u.Callback.Data; data != "" && data[0] == '\f' {
 			match := cbackRx.FindAllStringSubmatch(data, -1)
@@ -230,6 +232,11 @@ func (b *Bot) ProcessUpdate(u Update) {
 					return
 				}
 			}
+		}
+		// Callback game
+		if u.Callback.GameShortName != "" {
+			b.handle(OnCallbackGame, c)
+			return
 		}
 
 		b.handle(OnCallback, c)
