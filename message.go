@@ -582,7 +582,7 @@ type TextQuote struct {
 
 // MessageOrigin a message reference that has been sent originally by a known user.
 type MessageOrigin struct {
-	// Type of the message origin, always °∞channel°±.
+	// Type of the message origin, always ‚Äúchannel‚Äù.
 	Type string `json:"type"`
 
 	// Date the message was sent originally in Unix time.

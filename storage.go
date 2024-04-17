@@ -10,17 +10,17 @@ type IStorage interface {
 	// If the key is not found (and as such, this conversation has not yet started), this method should return the
 	// ConversationKeyNotFound error.
 	// Get(key string) (*State, error)
-	Get(ctx IContext) (*State, error)
+	Get(ctx Context) (*State, error)
 
 	// Set add the conversation state.
-	Set(ctx IContext, state State) error
+	Set(ctx Context, state State) error
 
 	// Next updates the conversation state.
-	Next(ctx IContext, key string) error
+	Next(ctx Context, key string) error
 
 	// UpdateData updates the conversation action state.
-	UpdateData(ctx IContext, act string, data any) error
+	UpdateData(ctx Context, act string, data any) error
 
 	// Delete ends the conversation, removing the key from the storage.
-	Delete(ctx IContext) error
+	Delete(ctx Context) error
 }

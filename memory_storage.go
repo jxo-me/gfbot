@@ -26,7 +26,7 @@ func NewInMemoryStorage(strategy KeyStrategy) *InMemoryStorage {
 	}
 }
 
-func (c *InMemoryStorage) Get(ctx IContext) (*State, error) {
+func (c *InMemoryStorage) Get(ctx Context) (*State, error) {
 	key := StateKey(ctx, c.keyStrategy)
 	fmt.Println("InMemoryStorage get Key:", key)
 	c.lock.RLock()
@@ -43,7 +43,7 @@ func (c *InMemoryStorage) Get(ctx IContext) (*State, error) {
 	return &s, nil
 }
 
-func (c *InMemoryStorage) Set(ctx IContext, state State) error {
+func (c *InMemoryStorage) Set(ctx Context, state State) error {
 	key := StateKey(ctx, c.keyStrategy)
 
 	c.lock.Lock()
@@ -57,7 +57,7 @@ func (c *InMemoryStorage) Set(ctx IContext, state State) error {
 	return nil
 }
 
-func (c *InMemoryStorage) Next(ctx IContext, keyStr string) error {
+func (c *InMemoryStorage) Next(ctx Context, keyStr string) error {
 	s, err := c.Get(ctx)
 	if err != nil {
 		s = &State{}
@@ -66,7 +66,7 @@ func (c *InMemoryStorage) Next(ctx IContext, keyStr string) error {
 	return c.Set(ctx, *s)
 }
 
-func (c *InMemoryStorage) UpdateData(ctx IContext, act string, data any) error {
+func (c *InMemoryStorage) UpdateData(ctx Context, act string, data any) error {
 	s, err := c.Get(ctx)
 	if err != nil {
 		// create
@@ -76,7 +76,7 @@ func (c *InMemoryStorage) UpdateData(ctx IContext, act string, data any) error {
 	return nil
 }
 
-func (c *InMemoryStorage) Delete(ctx IContext) error {
+func (c *InMemoryStorage) Delete(ctx Context) error {
 	key := StateKey(ctx, c.keyStrategy)
 
 	c.lock.Lock()

@@ -67,6 +67,15 @@ func NewError(code int, msgs ...string) *Error {
 	return err
 }
 
+// webapp errors
+var (
+	ErrAuthDateMissing  = errors.New("auth_date is missing")
+	ErrSignMissing      = errors.New("sign is missing")
+	ErrSignInvalid      = errors.New("sign is invalid")
+	ErrUnexpectedFormat = errors.New("init data has unexpected format")
+	ErrExpired          = errors.New("init data is expired")
+)
+
 // General errors
 var (
 	ErrTooLarge     = NewError(400, "Request Entity Too Large")
