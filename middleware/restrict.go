@@ -22,32 +22,32 @@ type RestrictConfig struct {
 // If the chat is found in the Chats field, In function will be called,
 // otherwise Out function will be called.
 func Restrict(v RestrictConfig) tele.MiddlewareFunc {
-	return func(next tele.IHandler) tele.IHandler {
+	return func(next tele.HandlerFunc) tele.HandlerFunc {
 		if v.In == nil {
-			v.In = next.HandleUpdate
+			v.In = next
 		}
 		if v.Out == nil {
-			v.Out = next.HandleUpdate
+			v.Out = next
 		}
-		return tele.HandlerFunc(func(c tele.IContext) error {
+		return func(c tele.Context) error {
 			for _, chat := range v.Chats {
 				if chat == c.Sender().ID {
 					return v.In(c)
 				}
 			}
 			return v.Out(c)
-		})
+		}
 	}
 }
 
 // Blacklist returns a middleware that skips the update for users
 // specified in the chats field.
 func Blacklist(chats ...int64) tele.MiddlewareFunc {
-	return func(next tele.IHandler) tele.IHandler {
+	return func(next tele.HandlerFunc) tele.HandlerFunc {
 		return Restrict(RestrictConfig{
 			Chats: chats,
-			Out:   next.HandleUpdate,
-			In:    func(c tele.IContext) error { return nil },
+			Out:   next,
+			In:    func(c tele.Context) error { return nil },
 		})(next)
 	}
 }
@@ -55,11 +55,11 @@ func Blacklist(chats ...int64) tele.MiddlewareFunc {
 // Whitelist returns a middleware that skips the update for users
 // NOT specified in the chats field.
 func Whitelist(chats ...int64) tele.MiddlewareFunc {
-	return func(next tele.IHandler) tele.IHandler {
+	return func(next tele.HandlerFunc) tele.HandlerFunc {
 		return Restrict(RestrictConfig{
 			Chats: chats,
-			In:    next.HandleUpdate,
-			Out:   func(c tele.IContext) error { return nil },
+			In:    next,
+			Out:   func(c tele.Context) error { return nil },
 		})(next)
 	}
 }

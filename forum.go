@@ -55,9 +55,3 @@ type ChatShared struct {
 	// Identifier of the shared chat. This number may have more than 32 significant bits and some programming languages may have difficulty/silent defects in interpreting it. But it has at most 52 significant bits, so a 64-bit integer or double-precision float type are safe for storing this identifier. The bot may not have access to the chat and could be unable to use this identifier, unless the chat is already known to the bot by some other means.
 	ChatId int64 `json:"chat_id"`
 }
-
-// WriteAccessAllowed This object represents a service message about a user allowing a bot to write messages after adding the bot to the attachment menu or launching a Web App from a link.
-type WriteAccessAllowed struct {
-	// Optional. Name of the Web App which was launched from a link
-	WebAppName string `json:"web_app_name,omitempty"`
-}

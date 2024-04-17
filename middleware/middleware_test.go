@@ -16,7 +16,7 @@ func TestRecover(t *testing.T) {
 		require.Error(t, err, "recover test")
 	}
 
-	h := func(c tele.IContext) error {
+	h := func(c tele.Context) error {
 		panic("recover test")
 	}
 
@@ -25,6 +25,6 @@ func TestRecover(t *testing.T) {
 	})
 
 	assert.NotPanics(t, func() {
-		Recover(onError)(tele.HandlerFunc(h)).HandleUpdate(nil)
+		Recover(onError)(h)(nil)
 	})
 }

@@ -8,27 +8,31 @@ import (
 type Update struct {
 	ID int `json:"update_id"`
 
-	Message           *Message          `json:"message,omitempty"`
-	EditedMessage     *Message          `json:"edited_message,omitempty"`
-	ChannelPost       *Message          `json:"channel_post,omitempty"`
-	EditedChannelPost *Message          `json:"edited_channel_post,omitempty"`
-	Callback          *Callback         `json:"callback_query,omitempty"`
-	Query             *Query            `json:"inline_query,omitempty"`
-	InlineResult      *InlineResult     `json:"chosen_inline_result,omitempty"`
-	ShippingQuery     *ShippingQuery    `json:"shipping_query,omitempty"`
-	PreCheckoutQuery  *PreCheckoutQuery `json:"pre_checkout_query,omitempty"`
-	Poll              *Poll             `json:"poll,omitempty"`
-	PollAnswer        *PollAnswer       `json:"poll_answer,omitempty"`
-	MyChatMember      *ChatMemberUpdate `json:"my_chat_member,omitempty"`
-	ChatMember        *ChatMemberUpdate `json:"chat_member,omitempty"`
-	ChatJoinRequest   *ChatJoinRequest  `json:"chat_join_request,omitempty"`
+	Message              *Message              `json:"message,omitempty"`
+	EditedMessage        *Message              `json:"edited_message,omitempty"`
+	ChannelPost          *Message              `json:"channel_post,omitempty"`
+	EditedChannelPost    *Message              `json:"edited_channel_post,omitempty"`
+	MessageReaction      *MessageReaction      `json:"message_reaction"`
+	MessageReactionCount *MessageReactionCount `json:"message_reaction_count"`
+	Callback             *Callback             `json:"callback_query,omitempty"`
+	Query                *Query                `json:"inline_query,omitempty"`
+	InlineResult         *InlineResult         `json:"chosen_inline_result,omitempty"`
+	ShippingQuery        *ShippingQuery        `json:"shipping_query,omitempty"`
+	PreCheckoutQuery     *PreCheckoutQuery     `json:"pre_checkout_query,omitempty"`
+	Poll                 *Poll                 `json:"poll,omitempty"`
+	PollAnswer           *PollAnswer           `json:"poll_answer,omitempty"`
+	MyChatMember         *ChatMemberUpdate     `json:"my_chat_member,omitempty"`
+	ChatMember           *ChatMemberUpdate     `json:"chat_member,omitempty"`
+	ChatJoinRequest      *ChatJoinRequest      `json:"chat_join_request,omitempty"`
+	Boost                *BoostUpdated         `json:"chat_boost"`
+	BoostRemoved         *BoostRemoved         `json:"removed_chat_boost"`
 }
 
 // ProcessUpdate processes a single incoming update.
 // A started bot calls this function automatically.
 func (b *Bot) ProcessUpdate(u Update) {
 	c := b.NewContext(u)
-	// send Message
+
 	if u.Message != nil {
 		m := u.Message
 
@@ -101,6 +105,35 @@ func (b *Bot) ProcessUpdate(u Update) {
 			return
 		}
 
+		if m.TopicCreated != nil {
+			b.handle(OnTopicCreated, c)
+			return
+		}
+		if m.TopicReopened != nil {
+			b.handle(OnTopicReopened, c)
+			return
+		}
+		if m.TopicClosed != nil {
+			b.handle(OnTopicClosed, c)
+			return
+		}
+		if m.TopicEdited != nil {
+			b.handle(OnTopicEdited, c)
+			return
+		}
+		if m.GeneralTopicHidden != nil {
+			b.handle(OnGeneralTopicHidden, c)
+			return
+		}
+		if m.GeneralTopicUnhidden != nil {
+			b.handle(OnGeneralTopicUnhidden, c)
+			return
+		}
+		if m.WriteAccessAllowed != nil {
+			b.handle(OnWriteAccessAllowed, c)
+			return
+		}
+
 		wasAdded := (m.UserJoined != nil && m.UserJoined.ID == b.Me.ID) ||
 			(m.UsersJoined != nil && isUserInList(b.Me, m.UsersJoined))
 		if m.GroupCreated || m.SuperGroupCreated || wasAdded {
@@ -112,7 +145,6 @@ func (b *Bot) ProcessUpdate(u Update) {
 			b.handle(OnUserJoined, c)
 			return
 		}
-
 		if m.UsersJoined != nil {
 			for _, user := range m.UsersJoined {
 				m.UserJoined = &user
@@ -120,9 +152,17 @@ func (b *Bot) ProcessUpdate(u Update) {
 			}
 			return
 		}
-
 		if m.UserLeft != nil {
 			b.handle(OnUserLeft, c)
+			return
+		}
+
+		if m.UserShared != nil {
+			b.handle(OnUserShared, c)
+			return
+		}
+		if m.ChatShared != nil {
+			b.handle(OnChatShared, c)
 			return
 		}
 
@@ -130,12 +170,10 @@ func (b *Bot) ProcessUpdate(u Update) {
 			b.handle(OnNewGroupTitle, c)
 			return
 		}
-
 		if m.NewGroupPhoto != nil {
 			b.handle(OnNewGroupPhoto, c)
 			return
 		}
-
 		if m.GroupPhotoDeleted {
 			b.handle(OnGroupPhotoDeleted, c)
 			return
@@ -145,12 +183,10 @@ func (b *Bot) ProcessUpdate(u Update) {
 			b.handle(OnGroupCreated, c)
 			return
 		}
-
 		if m.SuperGroupCreated {
 			b.handle(OnSuperGroupCreated, c)
 			return
 		}
-
 		if m.ChannelCreated {
 			b.handle(OnChannelCreated, c)
 			return
@@ -166,17 +202,14 @@ func (b *Bot) ProcessUpdate(u Update) {
 			b.handle(OnVideoChatStarted, c)
 			return
 		}
-
 		if m.VideoChatEnded != nil {
 			b.handle(OnVideoChatEnded, c)
 			return
 		}
-
 		if m.VideoChatParticipants != nil {
 			b.handle(OnVideoChatParticipants, c)
 			return
 		}
-
 		if m.VideoChatScheduled != nil {
 			b.handle(OnVideoChatScheduled, c)
 			return
@@ -184,13 +217,13 @@ func (b *Bot) ProcessUpdate(u Update) {
 
 		if m.WebAppData != nil {
 			b.handle(OnWebApp, c)
+			return
 		}
 
 		if m.ProximityAlert != nil {
 			b.handle(OnProximityAlert, c)
 			return
 		}
-
 		if m.AutoDeleteTimer != nil {
 			b.handle(OnAutoDeleteTimer, c)
 			return
@@ -219,7 +252,6 @@ func (b *Bot) ProcessUpdate(u Update) {
 		return
 	}
 
-	// Callback
 	if u.Callback != nil {
 		if data := u.Callback.Data; data != "" && data[0] == '\f' {
 			match := cbackRx.FindAllStringSubmatch(data, -1)
@@ -232,11 +264,6 @@ func (b *Bot) ProcessUpdate(u Update) {
 					return
 				}
 			}
-		}
-		// Callback game
-		if u.Callback.GameShortName != "" {
-			b.handle(OnCallbackGame, c)
-			return
 		}
 
 		b.handle(OnCallback, c)
@@ -287,28 +314,27 @@ func (b *Bot) ProcessUpdate(u Update) {
 		b.handle(OnChatJoinRequest, c)
 		return
 	}
+
+	if u.Boost != nil {
+		b.handle(OnBoost, c)
+		return
+	}
+
+	if u.BoostRemoved != nil {
+		b.handle(OnBoostRemoved, c)
+		return
+	}
 }
 
-func (b *Bot) handle(end string, c IContext) bool {
-	// get user conversation
-	state, err := b.Store().Get(c)
-	if err == nil && state != nil {
-		end = state.ServiceName
-	}
-	// common router
+func (b *Bot) handle(end string, c Context) bool {
 	if handler, ok := b.handlers[end]; ok {
-		if !handler.CheckUpdate(c) {
-			// IHandler filter doesn't match this update; continue.
-			return true
-		}
-
 		b.runHandler(handler, c)
 		return true
 	}
 	return false
 }
 
-func (b *Bot) handleMedia(c IContext) bool {
+func (b *Bot) handleMedia(c Context) bool {
 	var (
 		m     = c.Message()
 		fired = true
@@ -342,9 +368,9 @@ func (b *Bot) handleMedia(c IContext) bool {
 	return true
 }
 
-func (b *Bot) runHandler(h IHandler, c IContext) {
+func (b *Bot) runHandler(h HandlerFunc, c Context) {
 	f := func() {
-		if err := h.HandleUpdate(c); err != nil {
+		if err := h(c); err != nil {
 			b.OnError(err, c)
 		}
 	}

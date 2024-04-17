@@ -9,11 +9,11 @@ type wrappedExitHandler struct {
 	h tele.IHandler
 }
 
-func (w wrappedExitHandler) CheckUpdate(ctx tele.IContext) bool {
+func (w wrappedExitHandler) CheckUpdate(ctx tele.Context) bool {
 	return w.h.CheckUpdate(ctx)
 }
 
-func (w wrappedExitHandler) HandleUpdate(ctx tele.IContext) error {
+func (w wrappedExitHandler) HandleUpdate(ctx tele.Context) error {
 	err := w.h.HandleUpdate(ctx)
 	if err != nil {
 		return err

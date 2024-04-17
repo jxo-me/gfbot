@@ -53,6 +53,9 @@ type ReplyMarkup struct {
 
 	// Placeholder will be shown in the input field when the reply is active.
 	Placeholder string `json:"input_field_placeholder,omitempty"`
+
+	// IsPersistent allows to control when the keyboard is shown.
+	IsPersistent bool `json:"is_persistent,omitempty"`
 }
 
 func (r *ReplyMarkup) copy() *ReplyMarkup {
@@ -79,17 +82,19 @@ func (r *ReplyMarkup) copy() *ReplyMarkup {
 
 // Btn is a constructor button, which will later become either a reply, or an inline button.
 type Btn struct {
-	Unique          string   `json:"unique,omitempty"`
-	Text            string   `json:"text,omitempty"`
-	URL             string   `json:"url,omitempty"`
-	Data            string   `json:"callback_data,omitempty"`
-	InlineQuery     string   `json:"switch_inline_query,omitempty"`
-	InlineQueryChat string   `json:"switch_inline_query_current_chat,omitempty"`
-	Contact         bool     `json:"request_contact,omitempty"`
-	Location        bool     `json:"request_location,omitempty"`
-	Poll            PollType `json:"request_poll,omitempty"`
-	Login           *Login   `json:"login_url,omitempty"`
-	WebApp          *WebApp  `json:"web_app,omitempty"`
+	Unique          string          `json:"unique,omitempty"`
+	Text            string          `json:"text,omitempty"`
+	URL             string          `json:"url,omitempty"`
+	Data            string          `json:"callback_data,omitempty"`
+	InlineQuery     string          `json:"switch_inline_query,omitempty"`
+	InlineQueryChat string          `json:"switch_inline_query_current_chat,omitempty"`
+	Login           *Login          `json:"login_url,omitempty"`
+	WebApp          *WebApp         `json:"web_app,omitempty"`
+	Contact         bool            `json:"request_contact,omitempty"`
+	Location        bool            `json:"request_location,omitempty"`
+	Poll            PollType        `json:"request_poll,omitempty"`
+	User            *ReplyRecipient `json:"request_user,omitempty"`
+	Chat            *ReplyRecipient `json:"request_chat,omitempty"`
 }
 
 // Row represents an array of buttons, a row.
@@ -157,18 +162,6 @@ func (r *ReplyMarkup) Text(text string) Btn {
 	return Btn{Text: text}
 }
 
-func (r *ReplyMarkup) Contact(text string) Btn {
-	return Btn{Contact: true, Text: text}
-}
-
-func (r *ReplyMarkup) Location(text string) Btn {
-	return Btn{Location: true, Text: text}
-}
-
-func (r *ReplyMarkup) Poll(text string, poll PollType) Btn {
-	return Btn{Poll: poll, Text: text}
-}
-
 func (r *ReplyMarkup) Data(text, unique string, data ...string) Btn {
 	return Btn{
 		Unique: unique,
@@ -189,6 +182,26 @@ func (r *ReplyMarkup) QueryChat(text, query string) Btn {
 	return Btn{Text: text, InlineQueryChat: query}
 }
 
+func (r *ReplyMarkup) Contact(text string) Btn {
+	return Btn{Contact: true, Text: text}
+}
+
+func (r *ReplyMarkup) Location(text string) Btn {
+	return Btn{Location: true, Text: text}
+}
+
+func (r *ReplyMarkup) Poll(text string, poll PollType) Btn {
+	return Btn{Poll: poll, Text: text}
+}
+
+func (r *ReplyMarkup) User(text string, user *ReplyRecipient) Btn {
+	return Btn{Text: text, User: user}
+}
+
+func (r *ReplyMarkup) Chat(text string, chat *ReplyRecipient) Btn {
+	return Btn{Text: text, Chat: chat}
+}
+
 func (r *ReplyMarkup) Login(text string, login *Login) Btn {
 	return Btn{Login: login, Text: text}
 }
@@ -204,10 +217,12 @@ func (r *ReplyMarkup) WebApp(text string, app *WebApp) Btn {
 type ReplyButton struct {
 	Text string `json:"text"`
 
-	Contact  bool     `json:"request_contact,omitempty"`
-	Location bool     `json:"request_location,omitempty"`
-	Poll     PollType `json:"request_poll,omitempty"`
-	WebApp   *WebApp  `json:"web_app,omitempty"`
+	Contact  bool            `json:"request_contact,omitempty"`
+	Location bool            `json:"request_location,omitempty"`
+	Poll     PollType        `json:"request_poll,omitempty"`
+	User     *ReplyRecipient `json:"request_users,omitempty"`
+	Chat     *ReplyRecipient `json:"request_chat,omitempty"`
+	WebApp   *WebApp         `json:"web_app,omitempty"`
 }
 
 // MarshalJSON implements json.Marshaler. It allows passing PollType as a
@@ -220,6 +235,35 @@ func (pt PollType) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// ReplyRecipient combines both KeyboardButtonRequestUser
+// and KeyboardButtonRequestChat objects. Use inside ReplyButton
+// to request the user or chat sharing with respective settings.
+//
+// To pass the pointers to bool use a special tele.Flag function,
+// that way you will be able to reflect the three-state bool (nil, false, true).
+type ReplyRecipient struct {
+	ID int32 `json:"request_id"`
+
+	Bot      *bool `json:"user_is_bot,omitempty"`     // user only, optional
+	Premium  *bool `json:"user_is_premium,omitempty"` // user only, optional
+	Quantity int   `json:"max_quantity,omitempty"`    // user only, optional
+
+	Channel      bool    `json:"chat_is_channel,omitempty"`           // chat only, required
+	Forum        *bool   `json:"chat_is_forum,omitempty"`             // chat only, optional
+	WithUsername *bool   `json:"chat_has_username,omitempty"`         // chat only, optional
+	Created      *bool   `json:"chat_is_created,omitempty"`           // chat only, optional
+	UserRights   *Rights `json:"user_administrator_rights,omitempty"` // chat only, optional
+	BotRights    *Rights `json:"bot_administrator_rights,omitempty"`  // chat only, optional
+	BotMember    *bool   `json:"bot_is_member,omitempty"`             // chat only, optional
+}
+
+// RecipientShared combines both UserShared and ChatShared objects.
+type RecipientShared struct {
+	ID     int32 `json:"request_id"`
+	UserID int64 `json:"user_id"`
+	ChatID int64 `json:"chat_id"`
+}
+
 // InlineButton represents a button displayed in the message.
 type InlineButton struct {
 	// Unique slagish name for this kind of button,
@@ -228,29 +272,14 @@ type InlineButton struct {
 	// It will be used as a callback endpoint.
 	Unique string `json:"unique,omitempty"`
 
-	Text                  string                 `json:"text"`
-	URL                   string                 `json:"url,omitempty"`
-	Data                  string                 `json:"callback_data,omitempty"`
-	WebApp                *WebApp                `json:"web_app,omitempty"`
-	Login                 *Login                 `json:"login_url,omitempty"`
-	InlineQuery           string                 `json:"switch_inline_query,omitempty"`
-	InlineQueryChat       string                 `json:"switch_inline_query_current_chat,omitempty"`
-	InlineQueryChosenChat *InlineQueryChosenChat `json:"switch_inline_query_chosen_chat,omitempty"`
-	CallbackGame          *CallbackGame          `json:"callback_game,omitempty"`
-	Pay                   bool                   `json:"pay,omitempty"`
-}
-
-type InlineQueryChosenChat struct {
-	// 	Optional. The default inline query to be inserted in the input field. If left empty, only the bot's username will be inserted
-	Query string `json:"query,omitempty"`
-	// Optional. True, if private chats with users can be chosen
-	AllowUserChats bool `json:"allow_user_chats,omitempty"`
-	// Optional. True, if private chats with bots can be chosen
-	AllowBotChats bool `json:"allow_bot_chats,omitempty"`
-	// Optional. True, if group and supergroup chats can be chosen
-	AllowGroupChats bool `json:"allow_group_chats,omitempty"`
-	// Optional. True, if channel chats can be chosen
-	AllowChannelChats bool `json:"allow_channel_chats,omitempty"`
+	Text                  string             `json:"text"`
+	URL                   string             `json:"url,omitempty"`
+	Data                  string             `json:"callback_data,omitempty"`
+	InlineQuery           string             `json:"switch_inline_query,omitempty"`
+	InlineQueryChat       string             `json:"switch_inline_query_current_chat"`
+	InlineQueryChosenChat *SwitchInlineQuery `json:"switch_inline_query_chosen_chat,omitempty"`
+	Login                 *Login             `json:"login_url,omitempty"`
+	WebApp                *WebApp            `json:"web_app,omitempty"`
 }
 
 // MarshalJSON implements json.Marshaler interface.
@@ -293,6 +322,8 @@ func (b Btn) Reply() *ReplyButton {
 		Contact:  b.Contact,
 		Location: b.Location,
 		Poll:     b.Poll,
+		User:     b.User,
+		Chat:     b.Chat,
 		WebApp:   b.WebApp,
 	}
 }
@@ -319,9 +350,6 @@ type Login struct {
 	Username    string `json:"bot_username,omitempty"`
 	WriteAccess bool   `json:"request_write_access,omitempty"`
 }
-
-// CallbackGame is for starting a game in an inline keyboard button.
-type CallbackGame struct{}
 
 // MenuButton describes the bot's menu button in a private chat.
 type MenuButton struct {

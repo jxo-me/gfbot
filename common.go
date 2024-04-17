@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-func StateKey(ctx IContext, strategy KeyStrategy) string {
+func StateKey(ctx Context, strategy KeyStrategy) string {
 	switch strategy {
 	case KeyStrategySender:
 		return strconv.FormatInt(ctx.Sender().ID, 10)

@@ -14,7 +14,7 @@ type ResultBase struct {
 	ParseMode ParseMode `json:"parse_mode,omitempty"`
 
 	// Optional. Content of the message to be sent.
-	Content IInputMessageContent `json:"input_message_content,omitempty"`
+	Content InputMessageContent `json:"input_message_content,omitempty"`
 
 	// Optional. Inline keyboard attached to the message.
 	ReplyMarkup *ReplyMarkup `json:"reply_markup,omitempty"`
@@ -36,7 +36,7 @@ func (r *ResultBase) SetParseMode(mode ParseMode) {
 }
 
 // SetContent sets ResultBase.Content.
-func (r *ResultBase) SetContent(content IInputMessageContent) {
+func (r *ResultBase) SetContent(content InputMessageContent) {
 	r.Content = content
 }
 
@@ -60,6 +60,16 @@ func (r *ResultBase) Process(b *Bot) {
 	}
 }
 
+// GameResult represents a game. Game is a content type
+// supported by Telegram, which can be sent back to the
+// user as a result for an inline query.
+type GameResult struct {
+	ResultBase
+
+	// ShortName is a unique identifier of the game.
+	ShortName string `json:"game_short_name"`
+}
+
 // ArticleResult represents a link to an article or web page.
 type ArticleResult struct {
 	ResultBase
@@ -68,7 +78,7 @@ type ArticleResult struct {
 	Title string `json:"title"`
 
 	// Message text. Shortcut (and mutually exclusive to) specifying
-	// IInputMessageContent.
+	// InputMessageContent.
 	Text string `json:"message_text,omitempty"`
 
 	// Optional. URL of the result.

@@ -6,11 +6,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var _ IContext = (*nativeContext)(nil)
+var _ Context = (*nativeContext)(nil)
 
 func TestContext(t *testing.T) {
 	t.Run("Get,Set", func(t *testing.T) {
-		var c IContext
+		var c Context
 		c = new(nativeContext)
 		c.Set("name", "Jon Snow")
 		assert.Equal(t, "Jon Snow", c.Get("name"))

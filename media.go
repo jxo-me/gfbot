@@ -29,6 +29,7 @@ type InputMedia struct {
 	Performer            string   `json:"performer,omitempty"`
 	Streaming            bool     `json:"supports_streaming,omitempty"`
 	DisableTypeDetection bool     `json:"disable_content_type_detection,omitempty"`
+	HasSpoiler           bool     `json:"is_spoiler,omitempty"`
 }
 
 // Inputtable is a generic type for all kinds of media you
@@ -43,6 +44,24 @@ type Inputtable interface {
 
 // Album lets you group multiple media into a single message.
 type Album []Inputtable
+
+func (a Album) SetCaption(caption string) {
+	if len(a) < 1 {
+		return
+	}
+	switch a[0].MediaType() {
+	case "audio":
+		a[0].(*Audio).Caption = caption
+	case "video":
+		a[0].(*Video).Caption = caption
+	case "document":
+		a[0].(*Document).Caption = caption
+	case "photo":
+		a[0].(*Photo).Caption = caption
+	case "animation":
+		a[0].(*Animation).Caption = caption
+	}
+}
 
 // Photo object represents a single photo file.
 type Photo struct {
@@ -146,7 +165,7 @@ type Document struct {
 	// (Optional)
 	Thumbnail            *Photo `json:"thumbnail,omitempty"`
 	Caption              string `json:"caption,omitempty"`
-	MIME                 string `json:"mime_type,omitempty"`
+	MIME                 string `json:"mime_type"`
 	FileName             string `json:"file_name,omitempty"`
 	DisableTypeDetection bool   `json:"disable_content_type_detection,omitempty"`
 }
@@ -279,15 +298,18 @@ func (v *VideoNote) MediaFile() *File {
 // Sticker object represents a WebP image, so-called sticker.
 type Sticker struct {
 	File
-	Width            int           `json:"width"`
-	Height           int           `json:"height"`
-	Animated         bool          `json:"is_animated"`
-	Video            bool          `json:"is_video"`
-	Thumbnail        *Photo        `json:"thumb"`
-	Emoji            string        `json:"emoji"`
-	SetName          string        `json:"set_name"`
-	MaskPosition     *MaskPosition `json:"mask_position"`
-	PremiumAnimation *File         `json:"premium_animation"`
+	Type             StickerSetType `json:"type"`
+	Width            int            `json:"width"`
+	Height           int            `json:"height"`
+	Animated         bool           `json:"is_animated"`
+	Video            bool           `json:"is_video"`
+	Thumbnail        *Photo         `json:"thumbnail"`
+	Emoji            string         `json:"emoji"`
+	SetName          string         `json:"set_name"`
+	PremiumAnimation *File          `json:"premium_animation"`
+	MaskPosition     *MaskPosition  `json:"mask_position"`
+	CustomEmoji      string         `json:"custom_emoji_id"`
+	Repaint          bool           `json:"needs_repainting"`
 }
 
 func (s *Sticker) MediaType() string {
@@ -300,16 +322,12 @@ func (s *Sticker) MediaFile() *File {
 
 // Contact object represents a contact to Telegram user.
 type Contact struct {
-	// Contact's phone number
 	PhoneNumber string `json:"phone_number"`
-	// Contact's first name
-	FirstName string `json:"first_name"`
-	// Optional. Contact's last name
-	LastName string `json:"last_name,omitempty"`
-	// Optional. Contact's user identifier in Telegram. This number may have more than 32 significant bits and some programming languages may have difficulty/silent defects in interpreting it. But it has at most 52 significant bits, so a 64-bit integer or double-precision float type are safe for storing this identifier.
-	UserId int64 `json:"user_id,omitempty"`
-	// Optional. Additional data about the contact in the form of a vCard
-	Vcard string `json:"vcard,omitempty"`
+	FirstName   string `json:"first_name"`
+
+	// (Optional)
+	LastName string `json:"last_name"`
+	UserID   int64  `json:"user_id,omitempty"`
 }
 
 // Location object represents geographic position.

@@ -1,7 +1,6 @@
 package telebot
 
 import (
-	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -20,8 +19,6 @@ import (
 	"sync"
 	"time"
 )
-
-const DefaultMaxRoutines = 50
 
 // NewBot does try to build a Bot with token `token`, which
 // is a secret API key assigned to particular bot.
@@ -45,20 +42,6 @@ func NewBot(pref Settings) (*Bot, error) {
 		pref.OnError = defaultOnError
 	}
 
-	maxRoutines := DefaultMaxRoutines
-	if pref.MaxRoutines != 0 {
-		maxRoutines = pref.MaxRoutines
-	}
-	var limiter chan struct{}
-	// if maxRoutines < 0, we use a limitless dispatcher. (limiter == nil)
-	if maxRoutines >= 0 {
-		if maxRoutines == 0 {
-			maxRoutines = DefaultMaxRoutines
-		}
-
-		limiter = make(chan struct{}, maxRoutines)
-	}
-
 	bot := &Bot{
 		Token:   pref.Token,
 		URL:     pref.URL,
@@ -67,22 +50,13 @@ func NewBot(pref Settings) (*Bot, error) {
 		onError: pref.OnError,
 
 		Updates:  make(chan Update, pref.Updates),
-		handlers: make(map[string]IHandler),
+		handlers: make(map[string]HandlerFunc),
 		stop:     make(chan chan struct{}),
 
 		synchronous: pref.Synchronous,
 		verbose:     pref.Verbose,
 		parseMode:   pref.ParseMode,
 		client:      client,
-		// Setup a default storage medium
-		store:     NewInMemoryStorage(KeyStrategySenderAndChat),
-		limiter:   limiter,
-		waitGroup: sync.WaitGroup{},
-	}
-
-	// If no store is specified, we should keep the default.
-	if pref.StateStorage != nil {
-		bot.store = pref.StateStorage
 	}
 
 	if pref.Offline {
@@ -99,8 +73,6 @@ func NewBot(pref Settings) (*Bot, error) {
 	return bot, nil
 }
 
-type ErrorFunc func(error, IContext)
-
 // Bot represents a separate Telegram bot instance.
 type Bot struct {
 	Me          *User
@@ -108,23 +80,23 @@ type Bot struct {
 	URL         string
 	Updates     chan Update
 	Poller      Poller
-	onError     ErrorFunc
+	onError     func(error, Context)
 	hook        IHook
 	group       *Group
-	handlers    map[string]IHandler
+	handlers    map[string]HandlerFunc
 	synchronous bool
 	verbose     bool
 	parseMode   ParseMode
 	stop        chan chan struct{}
 	client      *http.Client
-	stopClient  chan struct{}
+
+	stopMu     sync.RWMutex
+	stopClient chan struct{}
 	// store is responsible for storing all running conversations.
 	store IStorage
 	// limiter is how we limit the maximum number of goroutines for handling updates.
 	// if nil, this is a limitless dispatcher.
 	limiter chan struct{}
-	// waitGroup handles the number of running operations to allow for clean shutdowns.
-	waitGroup sync.WaitGroup
 }
 
 // Settings represents a utility struct for passing certain
@@ -156,30 +128,16 @@ type Settings struct {
 	// OnError is a callback function that will get called on errors
 	// resulted from the handler. It is used as post-middleware function.
 	// Notice that context can be nil.
-	OnError func(error, IContext)
+	OnError func(error, Context)
 
 	// HTTP Client used to make requests to telegram api
 	Client *http.Client
 
 	// Offline allows to create a bot without network for testing purposes.
 	Offline bool
-
-	// StateStorage is responsible for storing all running conversations.
-	StateStorage IStorage
-
-	// MaxRoutines is used to decide how to limit the number of goroutines spawned by the dispatcher.
-	// This defines how many updates can be processed at the same time.
-	// If MaxRoutines == 0, DefaultMaxRoutines is used instead.
-	// If MaxRoutines < 0, no limits are imposed.
-	// If MaxRoutines > 0, that value is used.
-	MaxRoutines int
-
-	// limiter is how we limit the maximum number of goroutines for handling updates.
-	// if nil, this is a limitless dispatcher.
-	limiter chan struct{}
 }
 
-var defaultOnError = func(err error, c IContext) {
+var defaultOnError = func(err error, c Context) {
 	if c != nil {
 		log.Println(c.Update().ID, err)
 	} else {
@@ -187,7 +145,7 @@ var defaultOnError = func(err error, c IContext) {
 	}
 }
 
-func (b *Bot) OnError(err error, c IContext) {
+func (b *Bot) OnError(err error, c Context) {
 	b.onError(err, c)
 }
 
@@ -218,25 +176,25 @@ var (
 //
 // Example:
 //
-//	b.Handle("/start", func (c tele.IContext) error {
+//	b.Handle("/start", func (c tele.Context) error {
 //		return c.Reply("Hello!")
 //	})
 //
-//	b.Handle(&inlineButton, func (c tele.IContext) error {
+//	b.Handle(&inlineButton, func (c tele.Context) error {
 //		return c.Respond(&tele.CallbackResponse{Text: "Hello!"})
 //	})
 //
 // Middleware usage:
 //
 //	b.Handle("/ban", onBan, middleware.Whitelist(ids...))
-func (b *Bot) Handle(endpoint interface{}, h IHandler, m ...MiddlewareFunc) {
+func (b *Bot) Handle(endpoint interface{}, h HandlerFunc, m ...MiddlewareFunc) {
 	if len(b.group.middleware) > 0 {
-		m = append(b.group.middleware, m...)
+		m = appendMiddleware(b.group.middleware, m)
 	}
 
-	handler := HandlerFunc(func(c IContext) error {
-		return applyMiddleware(h, m...).HandleUpdate(c)
-	})
+	handler := func(c Context) error {
+		return applyMiddleware(h, m...)(c)
+	}
 
 	switch end := endpoint.(type) {
 	case string:
@@ -256,10 +214,14 @@ func (b *Bot) Start() {
 	}
 
 	// do nothing if called twice
+	b.stopMu.Lock()
 	if b.stopClient != nil {
+		b.stopMu.Unlock()
 		return
 	}
+
 	b.stopClient = make(chan struct{})
+	b.stopMu.Unlock()
 
 	stop := make(chan struct{})
 	stopConfirm := make(chan struct{})
@@ -273,35 +235,12 @@ func (b *Bot) Start() {
 		select {
 		// handle incoming updates
 		case upd := <-b.Updates:
-			l := &StdDebugLogger{}
-			data, _ := json.MarshalIndent(upd, "", "  ")
-			l.Debugf(context.Background(), string(data))
-			b.waitGroup.Add(1)
-
-			// If a limiter has been set, we use it to control the number of concurrent updates being processed.
-			if b.limiter != nil {
-				// Send data to limiter.
-				// If limiter buffer is full, this will block, until another update finishes processing.
-				b.limiter <- struct{}{}
-			}
-			go func(u Update) {
-				// We defer here so that whatever happens, we can clean up the dispatcher.
-				defer func() {
-					if b.limiter != nil {
-						// Pop an item from the limiter, allowing another update to process.
-						<-b.limiter
-					}
-					b.waitGroup.Done()
-				}()
-
-				b.ProcessUpdate(u)
-			}(upd)
+			b.ProcessUpdate(upd)
 			// call to stop polling
 		case confirm := <-b.stop:
 			close(stop)
 			<-stopConfirm
 			close(confirm)
-			b.stopClient = nil
 			return
 		}
 	}
@@ -309,13 +248,13 @@ func (b *Bot) Start() {
 
 // Stop gracefully shuts the poller down.
 func (b *Bot) Stop() {
+	b.stopMu.Lock()
 	if b.stopClient != nil {
 		close(b.stopClient)
+		b.stopClient = nil
 	}
-	b.waitGroup.Wait()
-	if b.limiter != nil {
-		close(b.limiter)
-	}
+	b.stopMu.Unlock()
+
 	confirm := make(chan struct{})
 	b.stop <- confirm
 	<-confirm
@@ -328,7 +267,7 @@ func (b *Bot) NewMarkup() *ReplyMarkup {
 
 // NewContext returns a new native context object,
 // field by the passed update.
-func (b *Bot) NewContext(u Update) IContext {
+func (b *Bot) NewContext(u Update) Context {
 	return &nativeContext{
 		b: b,
 		u: u,
@@ -367,6 +306,7 @@ func (b *Bot) Send(to Recipient, what interface{}, opts ...interface{}) (*Messag
 }
 
 // SendAlbum sends multiple instances of media as a single message.
+// To include the caption, make sure the first Inputtable of an album has it.
 // From all existing options, it only supports tele.Silent.
 func (b *Bot) SendAlbum(to Recipient, a Album, opts ...interface{}) ([]Message, error) {
 	if to == nil {
@@ -378,21 +318,8 @@ func (b *Bot) SendAlbum(to Recipient, a Album, opts ...interface{}) ([]Message, 
 	files := make(map[string]File)
 
 	for i, x := range a {
-		var (
-			repr string
-			data []byte
-			file = x.MediaFile()
-		)
-
-		switch {
-		case file.InCloud():
-			repr = file.FileID
-		case file.FileURL != "":
-			repr = file.FileURL
-		case file.OnDisk() || file.FileReader != nil:
-			repr = "attach://" + strconv.Itoa(i)
-			files[strconv.Itoa(i)] = *file
-		default:
+		repr := x.MediaFile().process(strconv.Itoa(i), files)
+		if repr == "" {
 			return nil, fmt.Errorf("telebot: album entry #%d does not exist", i)
 		}
 
@@ -405,7 +332,7 @@ func (b *Bot) SendAlbum(to Recipient, a Album, opts ...interface{}) ([]Message, 
 			im.ParseMode = sendOpts.ParseMode
 		}
 
-		data, _ = json.Marshal(im)
+		data, _ := json.Marshal(im)
 		media[i] = string(data)
 	}
 
@@ -486,6 +413,17 @@ func (b *Bot) Forward(to Recipient, msg Editable, opts ...interface{}) (*Message
 	return extractMessage(data)
 }
 
+// ForwardMessages method forwards multiple messages of any kind.
+// If some of the specified messages can't be found or forwarded, they are skipped.
+// Service messages and messages with protected content can't be forwarded.
+// Album grouping is kept for forwarded messages.
+func (b *Bot) ForwardMessages(to Recipient, msgs []Editable, opts ...*SendOptions) ([]Message, error) {
+	if to == nil {
+		return nil, ErrBadRecipient
+	}
+	return b.forwardCopyMessages(to, msgs, "forwardMessages", opts...)
+}
+
 // Copy behaves just like Forward() but the copied message doesn't have a link to the original message (see Bots API).
 //
 // This function will panic upon nil Editable.
@@ -510,6 +448,20 @@ func (b *Bot) Copy(to Recipient, msg Editable, options ...interface{}) (*Message
 	}
 
 	return extractMessage(data)
+}
+
+// CopyMessages this method makes a copy of messages of any kind.
+// If some of the specified messages can't be found or copied, they are skipped.
+// Service messages, giveaway messages, giveaway winners messages, and
+// invoice messages can't be copied. A quiz poll can be copied only if the value of the field
+// correct_option_id is known to the bot. The method is analogous
+// to the method forwardMessages, but the copied messages don't have a link to the original message.
+// Album grouping is kept for copied messages.
+func (b *Bot) CopyMessages(to Recipient, msgs []Editable, opts ...*SendOptions) ([]Message, error) {
+	if to == nil {
+		return nil, ErrBadRecipient
+	}
+	return b.forwardCopyMessages(to, msgs, "copyMessages", opts...)
 }
 
 // Edit is magic, it lets you change already sent message.
@@ -754,6 +706,17 @@ func (b *Bot) Delete(msg Editable) error {
 	return err
 }
 
+// DeleteMessages deletes multiple messages simultaneously.
+// If some of the specified messages can't be found, they are skipped.
+func (b *Bot) DeleteMessages(msgs []Editable) error {
+	params := make(map[string]string)
+
+	embedMessages(params, msgs)
+
+	_, err := b.Raw("deleteMessages", params)
+	return err
+}
+
 // Notify updates the chat action for recipient.
 //
 // Chat action is a status message that recipient would see where
@@ -763,7 +726,7 @@ func (b *Bot) Delete(msg Editable) error {
 //
 // Currently, Telegram supports only a narrow range of possible
 // actions, these are aligned as constants of this package.
-func (b *Bot) Notify(to Recipient, action ChatAction) error {
+func (b *Bot) Notify(to Recipient, action ChatAction, threadID ...int) error {
 	if to == nil {
 		return ErrBadRecipient
 	}
@@ -771,6 +734,10 @@ func (b *Bot) Notify(to Recipient, action ChatAction) error {
 	params := map[string]string{
 		"chat_id": to.Recipient(),
 		"action":  string(action),
+	}
+
+	if len(threadID) > 0 {
+		params["message_thread_id"] = strconv.Itoa(threadID[0])
 	}
 
 	_, err := b.Raw("sendChatAction", params)
@@ -868,7 +835,7 @@ func (b *Bot) Answer(query *Query, resp *QueryResponse) error {
 
 // AnswerWebApp sends a response for a query from Web App and returns
 // information about an inline message sent by a Web App on behalf of a user
-func (b *Bot) AnswerWebApp(query *Query, r IResult) (*WebAppMessage, error) {
+func (b *Bot) AnswerWebApp(query *Query, r Result) (*WebAppMessage, error) {
 	r.Process(b)
 
 	params := map[string]interface{}{
@@ -1025,7 +992,7 @@ func (b *Bot) StopPoll(msg Editable, opts ...interface{}) (*Poll, error) {
 }
 
 // Leave makes bot leave a group, supergroup or channel.
-func (b *Bot) Leave(chat *Chat) error {
+func (b *Bot) Leave(chat Recipient) error {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}
@@ -1055,7 +1022,7 @@ func (b *Bot) Pin(msg Editable, opts ...interface{}) error {
 
 // Unpin unpins a message in a supergroup or a channel.
 // It supports tb.Silent option.
-func (b *Bot) Unpin(chat *Chat, messageID ...int) error {
+func (b *Bot) Unpin(chat Recipient, messageID ...int) error {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}
@@ -1069,7 +1036,7 @@ func (b *Bot) Unpin(chat *Chat, messageID ...int) error {
 
 // UnpinAll unpins all messages in a supergroup or a channel.
 // It supports tb.Silent option.
-func (b *Bot) UnpinAll(chat *Chat) error {
+func (b *Bot) UnpinAll(chat Recipient) error {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}
@@ -1231,135 +1198,80 @@ func (b *Bot) Close() (bool, error) {
 	return resp.Result, nil
 }
 
-// SetMyName Use this method to change the bot's name. Returns True on success.
-func (b *Bot) SetMyName(languageCode string) (bool, error) {
-	params := map[string]interface{}{
-		"language_code": languageCode,
+// BotInfo represents a single object of BotName, BotDescription, BotShortDescription instances.
+type BotInfo struct {
+	Name             string `json:"name,omitempty"`
+	Description      string `json:"description,omitempty"`
+	ShortDescription string `json:"short_description,omitempty"`
+}
+
+// SetMyName change's the bot name.
+func (b *Bot) SetMyName(name, language string) error {
+	params := map[string]string{
+		"name":          name,
+		"language_code": language,
 	}
-	data, err := b.Raw("setMyName", params)
+
+	_, err := b.Raw("setMyName", params)
+	return err
+}
+
+// MyName returns the current bot name for the given user language.
+func (b *Bot) MyName(language string) (*BotInfo, error) {
+	return b.botInfo(language, "getMyName")
+}
+
+// SetMyDescription change's the bot description, which is shown in the chat
+// with the bot if the chat is empty.
+func (b *Bot) SetMyDescription(desc, language string) error {
+	params := map[string]string{
+		"description":   desc,
+		"language_code": language,
+	}
+
+	_, err := b.Raw("setMyDescription", params)
+	return err
+}
+
+// MyDescription the current bot description for the given user language.
+func (b *Bot) MyDescription(language string) (*BotInfo, error) {
+	return b.botInfo(language, "getMyDescription")
+}
+
+// SetMyShortDescription change's the bot short description, which is shown on
+// the bot's profile page and is sent together with the link when users share the bot.
+func (b *Bot) SetMyShortDescription(desc, language string) error {
+	params := map[string]string{
+		"short_description": desc,
+		"language_code":     language,
+	}
+
+	_, err := b.Raw("setMyShortDescription", params)
+	return err
+}
+
+// MyShortDescription the current bot short description for the given user language.
+func (b *Bot) MyShortDescription(language string) (*BotInfo, error) {
+	return b.botInfo(language, "getMyShortDescription")
+}
+
+func (b *Bot) botInfo(language, key string) (*BotInfo, error) {
+	params := map[string]string{
+		"language_code": language,
+	}
+
+	data, err := b.Raw(key, params)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	var resp struct {
-		Result bool `json:"result"`
+		Result *BotInfo
 	}
-
-	if err = json.Unmarshal(data, &resp); err != nil {
-		return false, wrapError(err)
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, wrapError(err)
 	}
-
 	return resp.Result, nil
-}
-
-// GetMyName Use this method to get the current bot name for the given user language. Returns BotName on success.
-func (b *Bot) GetMyName() (string, error) {
-	data, err := b.Raw("getMyName", nil)
-	if err != nil {
-		return "", err
-	}
-
-	var resp struct {
-		LanguageCode string `json:"language_code"`
-	}
-	if err = json.Unmarshal(data, &resp); err != nil {
-		return "", wrapError(err)
-	}
-
-	return resp.LanguageCode, nil
-}
-
-// SetMyDescription Use this method to change the bot's description, which is shown in the chat with the bot if the chat is empty.
-// Returns True on success.
-func (b *Bot) SetMyDescription(description, languageCode string) (bool, error) {
-	params := map[string]interface{}{
-		"description":   description,
-		"language_code": languageCode,
-	}
-	data, err := b.Raw("setMyDescription", params)
-	if err != nil {
-		return false, err
-	}
-
-	var resp struct {
-		Result bool `json:"result"`
-	}
-
-	if err = json.Unmarshal(data, &resp); err != nil {
-		return false, wrapError(err)
-	}
-
-	return resp.Result, nil
-}
-
-// GetMyDescription Use this method to get the current bot description for the given user language.
-// Returns BotDescription on success.
-func (b *Bot) GetMyDescription(languageCode string) (string, error) {
-	params := map[string]interface{}{
-		"language_code": languageCode,
-	}
-	data, err := b.Raw("getMyDescription", params)
-	if err != nil {
-		return "", err
-	}
-
-	var resp struct {
-		Result struct {
-			Description string `json:"description"`
-		}
-	}
-	if err = json.Unmarshal(data, &resp); err != nil {
-		return "", wrapError(err)
-	}
-
-	return resp.Result.Description, nil
-}
-
-// SetMyShortDescription Use this method to change the bot's short description,
-// which is shown on the bot's profile page and is sent together with the link when users share the bot.
-// Returns True on success.
-func (b *Bot) SetMyShortDescription(description, languageCode string) (bool, error) {
-	params := map[string]interface{}{
-		"short_description": description,
-		"language_code":     languageCode,
-	}
-	data, err := b.Raw("setMyShortDescription", params)
-	if err != nil {
-		return false, err
-	}
-
-	var resp struct {
-		Result bool `json:"result"`
-	}
-
-	if err = json.Unmarshal(data, &resp); err != nil {
-		return false, wrapError(err)
-	}
-
-	return resp.Result, nil
-}
-
-// GetMyShortDescription Use this method to get the current bot short description for the given user language.
-// Returns BotShortDescription on success.
-func (b *Bot) GetMyShortDescription(languageCode string) (string, error) {
-	params := map[string]interface{}{
-		"language_code": languageCode,
-	}
-	data, err := b.Raw("getMyShortDescription", params)
-	if err != nil {
-		return "", err
-	}
-
-	var resp struct {
-		Result struct {
-			Description string `json:"short_description"`
-		}
-	}
-	if err = json.Unmarshal(data, &resp); err != nil {
-		return "", wrapError(err)
-	}
-
-	return resp.Result.Description, nil
 }
 
 // ValidateWebAppData validate data received via the Web App

@@ -38,6 +38,6 @@ func (dlt *DefaultLayout) Markup(k string, args ...interface{}) *tele.ReplyMarku
 }
 
 // Result wraps localized layout function Result using your default locale.
-func (dlt *DefaultLayout) Result(k string, args ...interface{}) tele.IResult {
+func (dlt *DefaultLayout) Result(k string, args ...interface{}) tele.Result {
 	return dlt.lt.ResultLocale(dlt.locale, k, args...)
 }

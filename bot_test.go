@@ -23,6 +23,9 @@ var (
 	b, _ = newTestBot()      // cached bot instance to avoid getMe method flooding
 	to   = &Chat{ID: chatID} // to chat recipient for send and edit methods
 	user = &User{ID: userID} // to user recipient for some special cases
+
+	logo  = FromURL("https://telegra.ph/file/c95b8fe46dd3df15d12e5.png")
+	thumb = FromURL("https://telegra.ph/file/fe28e378784b3a4e367fb.png")
 )
 
 func defaultSettings() Settings {
@@ -79,20 +82,20 @@ func TestBotHandle(t *testing.T) {
 		t.Skip("Cached bot instance is bad (probably wrong or empty TELEBOT_SECRET)")
 	}
 
-	b.Handle("/start", HandlerFunc(func(c IContext) error { return nil }))
+	b.Handle("/start", func(c Context) error { return nil })
 	assert.Contains(t, b.handlers, "/start")
 
 	reply := ReplyButton{Text: "reply"}
-	b.Handle(&reply, HandlerFunc(func(c IContext) error { return nil }))
+	b.Handle(&reply, func(c Context) error { return nil })
 
 	inline := InlineButton{Unique: "inline"}
-	b.Handle(&inline, HandlerFunc(func(c IContext) error { return nil }))
+	b.Handle(&inline, func(c Context) error { return nil })
 
 	btnReply := (&ReplyMarkup{}).Text("btnReply")
-	b.Handle(&btnReply, HandlerFunc(func(c IContext) error { return nil }))
+	b.Handle(&btnReply, func(c Context) error { return nil })
 
 	btnInline := (&ReplyMarkup{}).Data("", "btnInline")
-	b.Handle(&btnInline, HandlerFunc(func(c IContext) error { return nil }))
+	b.Handle(&btnInline, func(c Context) error { return nil })
 
 	assert.Contains(t, b.handlers, btnReply.CallbackUnique())
 	assert.Contains(t, b.handlers, btnInline.CallbackUnique())
@@ -129,12 +132,12 @@ func TestBotStart(t *testing.T) {
 	b.Poller = tp
 
 	var ok bool
-	b.Handle("/start", HandlerFunc(func(c IContext) error {
+	b.Handle("/start", func(c Context) error {
 		assert.Equal(t, c.Text(), "/start")
 		tp.done <- struct{}{}
 		ok = true
 		return nil
-	}))
+	})
 
 	go b.Start()
 	<-tp.done
@@ -149,165 +152,165 @@ func TestBotProcessUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.Handle(OnMedia, HandlerFunc(func(c IContext) error {
+	b.Handle(OnMedia, func(c Context) error {
 		assert.NotNil(t, c.Message().Photo)
 		return nil
-	}))
+	})
 	b.ProcessUpdate(Update{Message: &Message{Photo: &Photo{}}})
 
-	b.Handle("/start", HandlerFunc(func(c IContext) error {
+	b.Handle("/start", func(c Context) error {
 		assert.Equal(t, "/start", c.Text())
 		return nil
-	}))
-	b.Handle("hello", HandlerFunc(func(c IContext) error {
+	})
+	b.Handle("hello", func(c Context) error {
 		assert.Equal(t, "hello", c.Text())
 		return nil
-	}))
-	b.Handle(OnText, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnText, func(c Context) error {
 		assert.Equal(t, "text", c.Text())
 		return nil
-	}))
-	b.Handle(OnPinned, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnPinned, func(c Context) error {
 		assert.NotNil(t, c.Message())
 		return nil
-	}))
-	b.Handle(OnPhoto, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnPhoto, func(c Context) error {
 		assert.NotNil(t, c.Message().Photo)
 		return nil
-	}))
-	b.Handle(OnVoice, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnVoice, func(c Context) error {
 		assert.NotNil(t, c.Message().Voice)
 		return nil
-	}))
-	b.Handle(OnAudio, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnAudio, func(c Context) error {
 		assert.NotNil(t, c.Message().Audio)
 		return nil
-	}))
-	b.Handle(OnAnimation, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnAnimation, func(c Context) error {
 		assert.NotNil(t, c.Message().Animation)
 		return nil
-	}))
-	b.Handle(OnDocument, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnDocument, func(c Context) error {
 		assert.NotNil(t, c.Message().Document)
 		return nil
-	}))
-	b.Handle(OnSticker, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnSticker, func(c Context) error {
 		assert.NotNil(t, c.Message().Sticker)
 		return nil
-	}))
-	b.Handle(OnVideo, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnVideo, func(c Context) error {
 		assert.NotNil(t, c.Message().Video)
 		return nil
-	}))
-	b.Handle(OnVideoNote, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnVideoNote, func(c Context) error {
 		assert.NotNil(t, c.Message().VideoNote)
 		return nil
-	}))
-	b.Handle(OnContact, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnContact, func(c Context) error {
 		assert.NotNil(t, c.Message().Contact)
 		return nil
-	}))
-	b.Handle(OnLocation, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnLocation, func(c Context) error {
 		assert.NotNil(t, c.Message().Location)
 		return nil
-	}))
-	b.Handle(OnVenue, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnVenue, func(c Context) error {
 		assert.NotNil(t, c.Message().Venue)
 		return nil
-	}))
-	b.Handle(OnDice, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnDice, func(c Context) error {
 		assert.NotNil(t, c.Message().Dice)
 		return nil
-	}))
-	b.Handle(OnInvoice, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnInvoice, func(c Context) error {
 		assert.NotNil(t, c.Message().Invoice)
 		return nil
-	}))
-	b.Handle(OnPayment, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnPayment, func(c Context) error {
 		assert.NotNil(t, c.Message().Payment)
 		return nil
-	}))
-	b.Handle(OnAddedToGroup, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnAddedToGroup, func(c Context) error {
 		assert.NotNil(t, c.Message().GroupCreated)
 		return nil
-	}))
-	b.Handle(OnUserJoined, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnUserJoined, func(c Context) error {
 		assert.NotNil(t, c.Message().UserJoined)
 		return nil
-	}))
-	b.Handle(OnUserLeft, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnUserLeft, func(c Context) error {
 		assert.NotNil(t, c.Message().UserLeft)
 		return nil
-	}))
-	b.Handle(OnNewGroupTitle, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnNewGroupTitle, func(c Context) error {
 		assert.Equal(t, "title", c.Message().NewGroupTitle)
 		return nil
-	}))
-	b.Handle(OnNewGroupPhoto, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnNewGroupPhoto, func(c Context) error {
 		assert.NotNil(t, c.Message().NewGroupPhoto)
 		return nil
-	}))
-	b.Handle(OnGroupPhotoDeleted, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnGroupPhotoDeleted, func(c Context) error {
 		assert.True(t, c.Message().GroupPhotoDeleted)
 		return nil
-	}))
-	b.Handle(OnMigration, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnMigration, func(c Context) error {
 		from, to := c.Migration()
 		assert.Equal(t, int64(1), from)
 		assert.Equal(t, int64(2), to)
 		return nil
-	}))
-	b.Handle(OnEdited, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnEdited, func(c Context) error {
 		assert.Equal(t, "edited", c.Message().Text)
 		return nil
-	}))
-	b.Handle(OnChannelPost, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnChannelPost, func(c Context) error {
 		assert.Equal(t, "post", c.Message().Text)
 		return nil
-	}))
-	b.Handle(OnEditedChannelPost, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnEditedChannelPost, func(c Context) error {
 		assert.Equal(t, "edited post", c.Message().Text)
 		return nil
-	}))
-	b.Handle(OnCallback, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnCallback, func(c Context) error {
 		if data := c.Callback().Data; data[0] != '\f' {
 			assert.Equal(t, "callback", data)
 		}
 		return nil
-	}))
-	b.Handle("\funique", HandlerFunc(func(c IContext) error {
+	})
+	b.Handle("\funique", func(c Context) error {
 		assert.Equal(t, "callback", c.Callback().Data)
 		return nil
-	}))
-	b.Handle(OnQuery, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnQuery, func(c Context) error {
 		assert.Equal(t, "query", c.Data())
 		return nil
-	}))
-	b.Handle(OnInlineResult, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnInlineResult, func(c Context) error {
 		assert.Equal(t, "result", c.InlineResult().ResultID)
 		return nil
-	}))
-	b.Handle(OnShipping, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnShipping, func(c Context) error {
 		assert.Equal(t, "shipping", c.ShippingQuery().ID)
 		return nil
-	}))
-	b.Handle(OnCheckout, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnCheckout, func(c Context) error {
 		assert.Equal(t, "checkout", c.PreCheckoutQuery().ID)
 		return nil
-	}))
-	b.Handle(OnPoll, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnPoll, func(c Context) error {
 		assert.Equal(t, "poll", c.Poll().ID)
 		return nil
-	}))
-	b.Handle(OnPollAnswer, HandlerFunc(func(c IContext) error {
+	})
+	b.Handle(OnPollAnswer, func(c Context) error {
 		assert.Equal(t, "poll", c.PollAnswer().PollID)
 		return nil
-	}))
+	})
 
-	b.Handle(OnWebApp, HandlerFunc(func(c IContext) error {
+	b.Handle(OnWebApp, func(c Context) error {
 		assert.Equal(t, "webapp", c.Message().WebAppData.Data)
 		return nil
-	}))
+	})
 
 	b.ProcessUpdate(Update{Message: &Message{Text: "/start"}})
 	b.ProcessUpdate(Update{Message: &Message{Text: "/start@other_bot"}})
@@ -333,7 +336,7 @@ func TestBotProcessUpdate(t *testing.T) {
 	b.ProcessUpdate(Update{Message: &Message{UsersJoined: []User{{ID: 1}}}})
 	b.ProcessUpdate(Update{Message: &Message{UserLeft: &User{}}})
 	b.ProcessUpdate(Update{Message: &Message{NewGroupTitle: "title"}})
-	b.ProcessUpdate(Update{Message: &Message{NewGroupPhoto: []Photo{}}})
+	b.ProcessUpdate(Update{Message: &Message{NewGroupPhoto: &Photo{}}})
 	b.ProcessUpdate(Update{Message: &Message{GroupPhotoDeleted: true}})
 	b.ProcessUpdate(Update{Message: &Message{Chat: &Chat{ID: 1}, MigrateTo: 2}})
 	b.ProcessUpdate(Update{EditedMessage: &Message{Text: "edited"}})
@@ -359,17 +362,127 @@ func TestBotOnError(t *testing.T) {
 	}
 
 	var ok bool
-	b.onError = func(err error, c IContext) {
+	b.onError = func(err error, c Context) {
 		assert.Equal(t, b, c.(*nativeContext).b)
 		assert.NotNil(t, err)
 		ok = true
 	}
 
-	b.runHandler(HandlerFunc(func(c IContext) error {
+	b.runHandler(func(c Context) error {
 		return errors.New("not nil")
-	}), &nativeContext{b: b})
+	}, &nativeContext{b: b})
 
 	assert.True(t, ok)
+}
+
+func TestBotMiddleware(t *testing.T) {
+	t.Run("calling order", func(t *testing.T) {
+		var trace []string
+
+		handler := func(name string) HandlerFunc {
+			return func(c Context) error {
+				trace = append(trace, name)
+				return nil
+			}
+		}
+
+		middleware := func(name string) MiddlewareFunc {
+			return func(next HandlerFunc) HandlerFunc {
+				return func(c Context) error {
+					trace = append(trace, name+":in")
+					err := next(c)
+					trace = append(trace, name+":out")
+					return err
+				}
+			}
+		}
+
+		b, err := NewBot(Settings{Synchronous: true, Offline: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		b.Use(middleware("global1"), middleware("global2"))
+		b.Handle("/a", handler("/a"), middleware("handler1a"), middleware("handler2a"))
+
+		group := b.Group()
+		group.Use(middleware("group1"), middleware("group2"))
+		group.Handle("/b", handler("/b"), middleware("handler1b"))
+
+		b.ProcessUpdate(Update{
+			Message: &Message{Text: "/a"},
+		})
+		assert.Equal(t, []string{
+			"global1:in", "global2:in",
+			"handler1a:in", "handler2a:in",
+			"/a",
+			"handler2a:out", "handler1a:out",
+			"global2:out", "global1:out",
+		}, trace)
+
+		trace = trace[:0]
+
+		b.ProcessUpdate(Update{
+			Message: &Message{Text: "/b"},
+		})
+		assert.Equal(t, []string{
+			"global1:in", "global2:in",
+			"group1:in", "group2:in",
+			"handler1b:in",
+			"/b",
+			"handler1b:out",
+			"group2:out", "group1:out",
+			"global2:out", "global1:out",
+		}, trace)
+	})
+
+	fatal := func(next HandlerFunc) HandlerFunc {
+		return func(c Context) error {
+			t.Fatal("fatal middleware should not be called")
+			return nil
+		}
+	}
+
+	nop := func(next HandlerFunc) HandlerFunc {
+		return func(c Context) error {
+			return next(c)
+		}
+	}
+
+	t.Run("combining with global middleware", func(t *testing.T) {
+		b, err := NewBot(Settings{Synchronous: true, Offline: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Pre-allocate middleware slice to make sure
+		// it has extra capacity after group-level middleware is added.
+		b.group.middleware = make([]MiddlewareFunc, 0, 2)
+		b.Use(nop)
+
+		b.Handle("/a", func(c Context) error { return nil }, nop)
+		b.Handle("/b", func(c Context) error { return nil }, fatal)
+
+		b.ProcessUpdate(Update{Message: &Message{Text: "/a"}})
+	})
+
+	t.Run("combining with group middleware", func(t *testing.T) {
+		b, err := NewBot(Settings{Synchronous: true, Offline: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		g := b.Group()
+		// Pre-allocate middleware slice to make sure
+		// it has extra capacity after group-level middleware is added.
+		g.middleware = make([]MiddlewareFunc, 0, 2)
+		g.Use(nop)
+
+		g.Handle("/a", func(c Context) error { return nil }, nop)
+		g.Handle("/b", func(c Context) error { return nil }, fatal)
+
+		b.ProcessUpdate(Update{Message: &Message{Text: "/a"}})
+	})
 }
 
 func TestBot(t *testing.T) {
@@ -391,7 +504,7 @@ func TestBot(t *testing.T) {
 	assert.Equal(t, ErrBadRecipient, err)
 
 	photo := &Photo{
-		File:    FromURL("https://telegra.ph/file/65c5237b040ebf80ec278.jpg"),
+		File:    logo,
 		Caption: t.Name(),
 	}
 	var msg *Message
@@ -645,13 +758,4 @@ func TestBot(t *testing.T) {
 
 func sleep() {
 	time.Sleep(time.Second)
-}
-
-func TestValidateWebAppData(t *testing.T) {
-	bot := &Bot{Token: "5768337691:AAH5YkoiEuPk8-FZa32hStHTqXiLPtAEhx8"}
-	initData := "query_id=AAHdF6IQAAAAAN0XohDhrOrc&user=%7B%22id%22%3A279058397%2C%22first_name%22%3A%22Vladislav%22%2C%22last_name%22%3A%22Kibenko%22%2C%22username%22%3A%22vdkfrost%22%2C%22language_code%22%3A%22ru%22%2C%22is_premium%22%3Atrue%7D&auth_date=1662771648&hash=c501b71e775f74ce10e377dea85a7ea24ecd640b223ea86dfe453e0eaed2e2b2"
-
-	valid, err := bot.ValidateWebAppData(initData, 0)
-	require.NoError(t, err)
-	assert.Equal(t, valid, true)
 }

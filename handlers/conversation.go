@@ -57,13 +57,13 @@ func NewConversation(entryName string, entryPoint tele.IHandler, subHandlers map
 	return c
 }
 
-func (c Conversation) CheckUpdate(ctx tele.IContext) bool {
+func (c Conversation) CheckUpdate(ctx tele.Context) bool {
 	// Note: Kinda sad that this error gets lost.
 	h, _ := c.getNextHandler(ctx)
 	return h != nil
 }
 
-func (c Conversation) HandleUpdate(ctx tele.IContext) error {
+func (c Conversation) HandleUpdate(ctx tele.Context) error {
 	next, err := c.getNextHandler(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get next handler in conversation: %w", err)
@@ -109,7 +109,7 @@ func (c Conversation) Name() string {
 
 // getNextHandler goes through all the handlers in the conversation, until it finds a handler that matches.
 // If no matching handler is found, returns nil.
-func (c Conversation) getNextHandler(ctx tele.IContext) (tele.IHandler, error) {
+func (c Conversation) getNextHandler(ctx tele.Context) (tele.IHandler, error) {
 	// Check if a conversation has already started for this user.
 	currState, _ := ctx.Bot().Store().Get(ctx)
 	cmd := ctx.Message().Text
