@@ -226,7 +226,7 @@ var (
 // Middleware usage:
 //
 //	b.Handle("/ban", onBan, middleware.Whitelist(ids...))
-func (b *Bot) Handle(endpoint interface{}, h HandlerFunc, m ...MiddlewareFunc) {
+func (b *Bot) Handle(endpoint interface{}, h IHandler, m ...MiddlewareFunc) {
 	end := extractEndpoint(endpoint)
 	if end == "" {
 		panic("telebot: unsupported endpoint")
@@ -237,7 +237,7 @@ func (b *Bot) Handle(endpoint interface{}, h HandlerFunc, m ...MiddlewareFunc) {
 	}
 
 	b.handlers[end] = HandlerFunc(func(c Context) error {
-		return applyMiddleware(h, m...)(c)
+		return applyMiddleware(h.HandleUpdate, m...)(c)
 	})
 }
 
