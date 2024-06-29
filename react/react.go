@@ -1,8 +1,14 @@
 package react
 
-import "github.com/jxo-me/gfbot"
+import (
+	tele "github.com/jxo-me/gfbot"
+)
 
-type Reaction = telebot.Reaction
+type Reaction = tele.Reaction
+
+func React(r ...Reaction) tele.ReactionOptions {
+	return tele.ReactionOptions{Reactions: r}
+}
 
 // Currently available emojis.
 var (

@@ -36,9 +36,9 @@ func (c *Boost) ExpirationDate() time.Time {
 type BoostSourceType = string
 
 const (
-	BoostPremium  = "premium"
-	BoostGiftCode = "gift_code"
-	BoostGiveaway = "giveaway"
+	BoostPremium  BoostSourceType = "premium"
+	BoostGiftCode BoostSourceType = "gift_code"
+	BoostGiveaway BoostSourceType = "giveaway"
 )
 
 // BoostSource describes the source of a chat boost.
@@ -102,10 +102,12 @@ func (b *Bot) UserBoosts(chat, user Recipient) ([]Boost, error) {
 	}
 
 	var resp struct {
-		Result []Boost `json:"boosts"`
+		Result struct {
+			Boosts []Boost `json:"boosts"`
+		}
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, wrapError(err)
 	}
-	return resp.Result, nil
+	return resp.Result.Boosts, nil
 }

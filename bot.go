@@ -20,6 +20,8 @@ import (
 	"time"
 )
 
+const DefaultMaxRoutines = 50
+
 // NewBot does try to build a Bot with token `token`, which
 // is a secret API key assigned to particular bot.
 func NewBot(pref Settings) (*Bot, error) {
@@ -41,6 +43,19 @@ func NewBot(pref Settings) (*Bot, error) {
 	if pref.OnError == nil {
 		pref.OnError = defaultOnError
 	}
+	maxRoutines := DefaultMaxRoutines
+	if pref.MaxRoutines != 0 {
+		maxRoutines = pref.MaxRoutines
+	}
+	var limiter chan struct{}
+	// if maxRoutines < 0, we use a limitless dispatcher. (limiter == nil)
+	if maxRoutines >= 0 {
+		if maxRoutines == 0 {
+			maxRoutines = DefaultMaxRoutines
+		}
+
+		limiter = make(chan struct{}, maxRoutines)
+	}
 
 	bot := &Bot{
 		Token:   pref.Token,
@@ -50,13 +65,22 @@ func NewBot(pref Settings) (*Bot, error) {
 		onError: pref.OnError,
 
 		Updates:  make(chan Update, pref.Updates),
-		handlers: make(map[string]HandlerFunc),
+		handlers: make(map[string]IHandler),
 		stop:     make(chan chan struct{}),
 
 		synchronous: pref.Synchronous,
 		verbose:     pref.Verbose,
 		parseMode:   pref.ParseMode,
 		client:      client,
+		// Setup a default storage medium
+		store:     NewInMemoryStorage(KeyStrategySenderAndChat),
+		limiter:   limiter,
+		waitGroup: sync.WaitGroup{},
+	}
+
+	// If no store is specified, we should keep the default.
+	if pref.StateStorage != nil {
+		bot.store = pref.StateStorage
 	}
 
 	if pref.Offline {
@@ -83,7 +107,7 @@ type Bot struct {
 	onError     func(error, Context)
 	hook        IHook
 	group       *Group
-	handlers    map[string]HandlerFunc
+	handlers    map[string]IHandler
 	synchronous bool
 	verbose     bool
 	parseMode   ParseMode
@@ -97,6 +121,8 @@ type Bot struct {
 	// limiter is how we limit the maximum number of goroutines for handling updates.
 	// if nil, this is a limitless dispatcher.
 	limiter chan struct{}
+	// waitGroup handles the number of running operations to allow for clean shutdowns.
+	waitGroup sync.WaitGroup
 }
 
 // Settings represents a utility struct for passing certain
@@ -135,6 +161,19 @@ type Settings struct {
 
 	// Offline allows to create a bot without network for testing purposes.
 	Offline bool
+
+	// StateStorage is responsible for storing all running conversations.
+	StateStorage IStorage
+
+	// MaxRoutines is used to decide how to limit the number of goroutines spawned by the dispatcher.
+	// This defines how many updates can be processed at the same time.
+	// If MaxRoutines == 0, DefaultMaxRoutines is used instead.
+	// If MaxRoutines < 0, no limits are imposed.
+	// If MaxRoutines > 0, that value is used.
+	MaxRoutines int
+	// limiter is how we limit the maximum number of goroutines for handling updates.
+	// if nil, this is a limitless dispatcher.
+	limiter chan struct{}
 }
 
 var defaultOnError = func(err error, c Context) {
@@ -188,22 +227,33 @@ var (
 //
 //	b.Handle("/ban", onBan, middleware.Whitelist(ids...))
 func (b *Bot) Handle(endpoint interface{}, h HandlerFunc, m ...MiddlewareFunc) {
+	end := extractEndpoint(endpoint)
+	if end == "" {
+		panic("telebot: unsupported endpoint")
+	}
+
 	if len(b.group.middleware) > 0 {
 		m = appendMiddleware(b.group.middleware, m)
 	}
 
-	handler := func(c Context) error {
+	b.handlers[end] = HandlerFunc(func(c Context) error {
 		return applyMiddleware(h, m...)(c)
+	})
+}
+
+// Trigger executes the registered handler by the endpoint.
+func (b *Bot) Trigger(endpoint interface{}, c Context) error {
+	end := extractEndpoint(endpoint)
+	if end == "" {
+		return fmt.Errorf("telebot: unsupported endpoint")
 	}
 
-	switch end := endpoint.(type) {
-	case string:
-		b.handlers[end] = handler
-	case CallbackEndpoint:
-		b.handlers[end.CallbackUnique()] = handler
-	default:
-		panic("telebot: unsupported endpoint")
+	handler, ok := b.handlers[end]
+	if !ok {
+		return fmt.Errorf("telebot: no handler found for given endpoint")
 	}
+
+	return handler.HandleUpdate(c)
 }
 
 // Start brings bot into motion by consuming incoming
@@ -235,7 +285,26 @@ func (b *Bot) Start() {
 		select {
 		// handle incoming updates
 		case upd := <-b.Updates:
-			b.ProcessUpdate(upd)
+			b.waitGroup.Add(1)
+
+			// If a limiter has been set, we use it to control the number of concurrent updates being processed.
+			if b.limiter != nil {
+				// Send data to limiter.
+				// If limiter buffer is full, this will block, until another update finishes processing.
+				b.limiter <- struct{}{}
+			}
+			go func(u Update) {
+				// We defer here so that whatever happens, we can clean up the dispatcher.
+				defer func() {
+					if b.limiter != nil {
+						// Pop an item from the limiter, allowing another update to process.
+						<-b.limiter
+					}
+					b.waitGroup.Done()
+				}()
+
+				b.ProcessUpdate(u)
+			}(upd)
 			// call to stop polling
 		case confirm := <-b.stop:
 			close(stop)
@@ -254,7 +323,9 @@ func (b *Bot) Stop() {
 		b.stopClient = nil
 	}
 	b.stopMu.Unlock()
-
+	if b.limiter != nil {
+		close(b.limiter)
+	}
 	confirm := make(chan struct{})
 	b.stop <- confirm
 	<-confirm
@@ -413,15 +484,15 @@ func (b *Bot) Forward(to Recipient, msg Editable, opts ...interface{}) (*Message
 	return extractMessage(data)
 }
 
-// ForwardMessages method forwards multiple messages of any kind.
+// ForwardMany method forwards multiple messages of any kind.
 // If some of the specified messages can't be found or forwarded, they are skipped.
 // Service messages and messages with protected content can't be forwarded.
 // Album grouping is kept for forwarded messages.
-func (b *Bot) ForwardMessages(to Recipient, msgs []Editable, opts ...*SendOptions) ([]Message, error) {
+func (b *Bot) ForwardMany(to Recipient, msgs []Editable, opts ...*SendOptions) ([]Message, error) {
 	if to == nil {
 		return nil, ErrBadRecipient
 	}
-	return b.forwardCopyMessages(to, msgs, "forwardMessages", opts...)
+	return b.forwardCopyMany(to, msgs, "forwardMessages", opts...)
 }
 
 // Copy behaves just like Forward() but the copied message doesn't have a link to the original message (see Bots API).
@@ -450,18 +521,18 @@ func (b *Bot) Copy(to Recipient, msg Editable, options ...interface{}) (*Message
 	return extractMessage(data)
 }
 
-// CopyMessages this method makes a copy of messages of any kind.
+// CopyMany this method makes a copy of messages of any kind.
 // If some of the specified messages can't be found or copied, they are skipped.
 // Service messages, giveaway messages, giveaway winners messages, and
 // invoice messages can't be copied. A quiz poll can be copied only if the value of the field
 // correct_option_id is known to the bot. The method is analogous
 // to the method forwardMessages, but the copied messages don't have a link to the original message.
 // Album grouping is kept for copied messages.
-func (b *Bot) CopyMessages(to Recipient, msgs []Editable, opts ...*SendOptions) ([]Message, error) {
+func (b *Bot) CopyMany(to Recipient, msgs []Editable, opts ...*SendOptions) ([]Message, error) {
 	if to == nil {
 		return nil, ErrBadRecipient
 	}
-	return b.forwardCopyMessages(to, msgs, "copyMessages", opts...)
+	return b.forwardCopyMany(to, msgs, "copyMessages", opts...)
 }
 
 // Edit is magic, it lets you change already sent message.
@@ -706,11 +777,10 @@ func (b *Bot) Delete(msg Editable) error {
 	return err
 }
 
-// DeleteMessages deletes multiple messages simultaneously.
+// DeleteMany deletes multiple messages simultaneously.
 // If some of the specified messages can't be found, they are skipped.
-func (b *Bot) DeleteMessages(msgs []Editable) error {
+func (b *Bot) DeleteMany(msgs []Editable) error {
 	params := make(map[string]string)
-
 	embedMessages(params, msgs)
 
 	_, err := b.Raw("deleteMessages", params)
@@ -1272,6 +1342,16 @@ func (b *Bot) botInfo(language, key string) (*BotInfo, error) {
 		return nil, wrapError(err)
 	}
 	return resp.Result, nil
+}
+
+func extractEndpoint(endpoint interface{}) string {
+	switch end := endpoint.(type) {
+	case string:
+		return end
+	case CallbackEndpoint:
+		return end.CallbackUnique()
+	}
+	return ""
 }
 
 // ValidateWebAppData validate data received via the Web App
